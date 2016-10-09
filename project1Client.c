@@ -7,17 +7,19 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "project1.h"
+#include "clientCommands.c"
 
 #define BUFSIZE 512
 
 int main(int argc, char *argv[]) {
-  int sock, rtnVal;
+  int sock, rtnVal, connectValue;
   in_port_t servPort;
   char *servIP, *port, *test;
   ssize_t numBytes;
   size_t messageLen;
   char buffer[BUFSIZE]; // I/O buffer
-  
+  int timeToEnd = 0;
+
   test = "thing";
 
   if (argc != 3){ // Test for correct number of arguments
@@ -55,17 +57,64 @@ int main(int argc, char *argv[]) {
     return 0;
   }
   printf("Address Converted\n");
-  printf("htons(servPort) returns: %d\n", htons(servPort));
+  //printf("htons(servPort) returns: %d\n", htons(servPort));
   servAddr.sin_port = htons(servPort);    // Server port
 
   printf("Attempting Connection...");
   // Establish the connection to the echo server
-  if (connect(sock, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0){
+  connectValue = connect(sock, (struct sockaddr *) &servAddr, sizeof(servAddr))
+  if (connectValue < 0){
     printf("Failed to connect...\n");
     return 0;
   }
   printf("Now Connected to server\n");
 
+  for(i = 0; i < sizeof(commands); i++) //Loop through all commands
+  {
+    if(timeToEnd){
+      
+      break;
+    }
+    switch(i){
+      case nullTerminatedCmd:
+        DoNullTerminated();
+        break;
+      case givenLengthCmd:
+        DoGivenLength();
+        break;
+      case badIntCmd:
+        DoBadInt();
+        break;
+      case goodIntCmd:
+        DoGoodInt();
+        break;
+      case byteAtATimeCmd:
+        DoByte();
+        break;
+      case kByteAtATimeCmd:
+        DoKByte();
+        break;
+      case kByteAtATimeCmd:
+        timeToEnd = 1;
+        break;
+      default:
+        timeToEnd = 1;
+    }
+  }
+
+  close(sock); //close the connection
+  exit(0); //End Program
+
+
+
+
+
+
+
+
+
+//THIS WILL BE USEFUL LATER  
+/*
   messageLen = strlen(test); // Determine input length
 
   // Send the string to the server
@@ -85,7 +134,7 @@ int main(int argc, char *argv[]) {
 
   while (totalBytesRcvd < messageLen) {
     
-    /* Receive up to the buffer size (minus 1 to leave space for a null terminator) bytes from the sender */
+    // Receive up to the buffer size (minus 1 to leave space for a null terminator) bytes from the sender
     numBytes = recv(sock, buffer, BUFSIZE - 1, 0);
     if (numBytes < 0){
       printf("Failed to recieve from server\n");
@@ -105,4 +154,5 @@ int main(int argc, char *argv[]) {
 
   close(sock);
   exit(0);
+  */
 }
