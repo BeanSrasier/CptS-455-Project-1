@@ -9,13 +9,56 @@
 #include <signal.h>
 #include <errno.h>
 #include "project1.h"
+#define RECVBUFSIZE 256
 
 int run;
+int totalBytesRead;
 
 void CtrlCTrap(int signal)
 {
 	run = 0;
 }
+
+void nullTerminatedCmd(int socket)
+{
+	char buf[RECVBUFSIZE];
+	int recvMsgSize;
+	if((recvMsgSize = recv(clntSock, recvBuffer, RECVBUFSIZE, 0)) < 0)
+	{
+		//printf("Failed to recieve...\n");
+	}
+	while(recvMsgSize > 0)
+	{
+
+	}
+	
+}
+
+void givenLengthCmd(int socket)
+{
+	
+}
+
+void badIntCmd(int socket)
+{
+	
+}
+
+void goodIntCmd(int socket)
+{
+	
+}
+
+void byteAtATimeCmd(int socket)
+{
+	
+}
+
+void kByteAtATimeCmd(int socket)
+{
+	
+}
+
 
 int main(int argc, char *argv[]) //argv[1] is the port to listen to
 {
@@ -71,9 +114,31 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 		{
 			//printf("Failed to Accept...\n");
 		}
-		if((recvMsgSize = recv(clntSock, recvBuffer, 32, 0)) < 0)
+		if((recvMsgSize = recv(clntSock, recvBuffer, 1, 0)) < 0) //receive the first byte to check which command to implement
 		{
 			//printf("Failed to recieve...\n");
+		}
+		//read into log file
+		switch(atoi(recvBuffer[0])) //first byte is associated command
+		{
+			case 1: 
+				nullTerminatedCmd(clntSock);
+				break;
+			case 2: 
+				givenLengthCmd(clntSock);
+				break;
+			case 3: 
+				badIntCmd(clntSock);
+				break;
+			case 4: 
+				goodIntCmd(clntSock);
+				break;
+			case 5: 
+				byteAtATimeCmd(clntSock);
+				break;
+			case 6: 
+				kByteAtATimeCmd(clntSock);
+				break;
 		}
 		while(recvMsgSize > 0)
 		{
@@ -86,7 +151,7 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 				printf("Failed to Recieve (v2)...\n");
 			}
 		}
+		printf("Server read %d bytes\n", totalBytesRead); //print #bytes received
 		close(clntSock);
 	}
-	//exit with ctrl-c
 }
