@@ -8,9 +8,10 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <errno.h>
+#include <stdint.h>
 #include "project1.h"
-#define RECVBUFSIZE 512
-#define MAXSTRLEN 128
+
+#define RECVBUFSIZE 1000
 
 int run;
 int totalBytesRead;
@@ -23,70 +24,100 @@ void CtrlCTrap(int signal)
 void sendString(int socket, char *buf, int cmd)
 {
 	char *returnString;
-	strcpy(returnString, strlen(buf));
-	strcat(returnString, " bytes: ");
+	//write buffer to log file
+	uint16_t size = (uint16_t)strlen(buf); //buf contents
+	size += (uint16_t)strlen(commandNames[cmd]); //command name
+	size += (uint16_t)2; //colon and space
+	printf("Size: %d", size);
+	strcpy(returnString, (char *)&size);
 	strcat(returnString, commandNames[cmd]);
 	strcat(returnString, ": ");
 	strcat(returnString, buf);
-	strcat(returnString, "\0");
-	if(send(socket, returnString, strlen(returnString), 0) != returnString)
+	if(send(socket, returnString, strlen(returnString), 0) != strlen(returnString))
 	{
 		//printf("Failed to send");
 	}
 }
 
-void nullTerminatedCmd(int socket)
+int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
+{
+	int recvMsgSize = 0;
+	int offset = bytesRead;
+	int i;
+	for(i = 1; i < bytesRead; i++) //look through bytes received in the buffer
+	{
+		if(buf[i] == '\0') //found null terminated byte
+		{
+			sendString(socket, buf+1, 1); //exclude the cmd byte
+			return;
+		}
+	}
+	while(1)
+	{
+		if((recvMsgSize = recv(socket, buf + bytesRead, RECVBUFSIZE - bytesRead, 0)) < 1) //expecting at least 1 byte
+		{
+			//failed to receive or connection severed
+		}
+		totalBytesRead += recvMsgSize;
+		for(i = 0; i < recvMsgSize; i++)
+		{
+			if(buf[i+offset] == '\0') //found null terminated byte
+			{
+				sendString(socket, buf+1, 1);  //exclude the cmd byte
+				return;
+			}
+		}
+		offset += recvMsgSize; //increment offset
+	}
+}
+
+int givenLength(int socket, char *buf, int bytesRead)
+{
+	uint16_t length;
+	char *strLen;
+	int recvMsgSize = 0;
+	length = (uint16_t)atoi(buf+1);
+	if(length == bytesRead - 3) //buf[0] is the cmd, buf[1] and buf[2] are the 16 bit length, rest is the string
+	{
+		sendString(socket, buf+3, 2);
+		return; //am done
+	}
+	if((recvMsgSize = recv(socket, buf+bytesRead, length-bytesRead, 0)) < 0)
+	{
+		//print error
+	}
+	sendString(socket, buf+3, 2);
+	return; //am done
+}
+
+void goodOrBadInt(int socket, int cmd)
 {
 	char buf[RECVBUFSIZE];
 	int recvMsgSize = 0;
-	int offset;
-	if((recvMsgSize = recv(clntSock, buf, MAXSTRLEN, 0)) < 0)
+	int bytes; //uint 32
+	unsigned short byteOrder;
+	if((recvMsgSize = recv(socket, buf, 4, 0)) < 0) //receive 4 byte int from client (can be good or bad int, behavior is same)
 	{
 		//printf("Failed to recieve...\n");
 	}
-	offset = recvMsgSize;
-	while(recvMsgSize > 0 && offset != RECVBUFSIZE) //still reading and buffer not overflowed
+	bytes = atoi(buf);
+	byteOrder = htonl(bytes);
+	sprintf(buf, "%d", byteOrder);
+	sendString(socket, buf, cmd);
+}
+
+void byteAtATime(int socket)
+{
+	char buf[RECVBUFSIZE];
+	int recvMsgSize = 0;
+	if((recvMsgSize = recv(socket, buf, 1, 0)) < 0) //receive 1 byte at a time
 	{
-		if(offset + MAXSTRLEN < RECVBUFSIZE)
-		{
-			if((recvMsgSize = recv(clntSock, buf + offset, MAXSTRLEN, 0)) < 0)
-			{
-				//printf("Failed to recieve...\n");
-			}
-		}
-		else
-		{
-			if((recvMsgSize = recv(clntSock, buf + offset, RECVBUFSIZE - offset, 0)) < 0)
-			{
-				//printf("Failed to recieve...\n");
-			}
-		{
-		offset += recvMsgSize;
+		//printf("Failed to recieve...\n");
 	}
-	sendString(socket, buf, 1);
-}
-
-void givenLengthCmd(int socket)
-{
 	
 }
 
-void badIntCmd(int socket)
-{
-	
-}
-
-void goodIntCmd(int socket)
-{
-	
-}
-
-void byteAtATimeCmd(int socket)
-{
-	
-}
-
-void kByteAtATimeCmd(int socket)
+void kByteAtATime(int socket)
 {
 	
 }
@@ -97,6 +128,7 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 	int servSock; //Socket descriptor for server
 	int clntSock; //Socket descriptor for client
 	in_port_t servPort;
+	int cmd;
 	int recvMsgSize;
 	int clntAddrLen;
 	char recvBuffer[32];
@@ -139,16 +171,16 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 	}
 
         printf("Entering while(run) loop\n");
-	while(1) //change to if ctrl-c is hit
+	while(run) //change to if ctrl-c is hit
 	{
 		clntAddrLen = sizeof(clntAddr);
 		if((clntSock = accept(servSock, (struct sockaddr *) &clntAddr, &clntAddrLen)) < 0)
 		{
 			//printf("Failed to Accept...\n");
 		}
-		while(1)
+		while(run)
 		{
-			if((recvMsgSize = recv(clntSock, recvBuffer, 1, 0)) < 0) //receive the first byte to check which command to implement
+			if((recvMsgSize = recv(clntSock, recvBuffer, RECVBUFSIZE, 0)) < 0) //receive 1000 bytes (first read)
 			{
 				//printf("Failed to recieve...\n");
 			}
@@ -158,25 +190,26 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 			}
 			totalBytesRead += recvMsgSize;
 			//read into log file
-			switch(atoi(recvBuffer[0])) //first byte is associated command
+			cmd = (int)recvBuffer[0];
+			switch(cmd) //first byte is associated command
 			{
 				case 1: 
-					nullTerminatedCmd(clntSock);
+					nullTerminated(clntSock, recvBuffer, recvMsgSize);
 					break;
 				case 2: 
-					givenLengthCmd(clntSock);
+					givenLength(clntSock, recvBuffer, recvMsgSize);
 					break;
 				case 3: 
-					badIntCmd(clntSock);
+					goodOrBadInt(clntSock, 3);
 					break;
 				case 4: 
-					goodIntCmd(clntSock);
+					goodOrBadInt(clntSock, 4);
 					break;
 				case 5: 
-					byteAtATimeCmd(clntSock);
+					byteAtATime(clntSock);
 					break;
 				case 6: 
-					kByteAtATimeCmd(clntSock);
+					kByteAtATime(clntSock);
 					break;
 			}
 		}
