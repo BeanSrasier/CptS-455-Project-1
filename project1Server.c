@@ -28,11 +28,29 @@ void sendString(int socket, char *buf, int cmd)
 	uint16_t size = (uint16_t)strlen(buf); //buf contents
 	size += (uint16_t)strlen(commandNames[cmd]); //command name
 	size += (uint16_t)2; //colon and space
-	printf("Size: %d", size);
+	printf("Size of send: %d", size);
 	strcpy(returnString, (char *)&size);
 	strcat(returnString, commandNames[cmd]);
 	strcat(returnString, ": ");
 	strcat(returnString, buf);
+	if(send(socket, returnString, strlen(returnString), 0) != strlen(returnString))
+	{
+		//printf("Failed to send");
+	}
+}
+
+void sendNumRecvs(int socket, int numRecvs, int cmd)
+{
+	char *returnString;
+	//write buffer to log file
+	uint16_t size = (uint16_t)numRecvs; //numRecvs
+	size += (uint16_t)strlen(commandNames[cmd]); //command name
+	size += (uint16_t)2; //colon and space
+	printf("Size of send: %d", size);
+	strcpy(returnString, (char *)&size);
+	strcat(returnString, commandNames[cmd]);
+	strcat(returnString, ": ");
+	strcat(returnString, (char *)&numRecvs);
 	if(send(socket, returnString, strlen(returnString), 0) != strlen(returnString))
 	{
 		//printf("Failed to send");
@@ -58,7 +76,7 @@ int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
 		{
 			//failed to receive or connection severed
 		}
-		totalBytesRead += recvMsgSize;
+		totalBytesRead += recvMsgSize; //increment total bytes read
 		for(i = 0; i < recvMsgSize; i++)
 		{
 			if(buf[i+offset] == '\0') //found null terminated byte
@@ -71,7 +89,7 @@ int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
 	}
 }
 
-int givenLength(int socket, char *buf, int bytesRead)
+int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 {
 	uint16_t length;
 	char *strLen;
@@ -86,40 +104,53 @@ int givenLength(int socket, char *buf, int bytesRead)
 	{
 		//print error
 	}
+	totalBytesRead += recvMsgSize; //increment total bytes read
 	sendString(socket, buf+3, 2);
 	return; //am done
 }
 
-void goodOrBadInt(int socket, int cmd)
+int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 {
-	char buf[RECVBUFSIZE];
 	int recvMsgSize = 0;
-	int bytes; //uint 32
+	int bytes;
 	unsigned short byteOrder;
-	if((recvMsgSize = recv(socket, buf, 4, 0)) < 0) //receive 4 byte int from client (can be good or bad int, behavior is same)
+	char *outputBuffer;
+	if(bytesRead < 5) //should be 5, 1 for the cmd, 4 for the integer
 	{
-		//printf("Failed to recieve...\n");
+		if((recvMsgSize = recv(socket, buf+bytesRead, 5-bytesRead, 0)) < 0) //should receive rest of the bytes
+		{
+			//printf("Failed to recieve...\n");
+		}
+		totalBytesRead += recvMsgSize; //increment total bytes read
 	}
-	bytes = atoi(buf);
+	bytes = (int)atoi(buf+1);
 	byteOrder = htonl(bytes);
-	sprintf(buf, "%d", byteOrder);
-	sendString(socket, buf, cmd);
+	sprintf(outputBuffer, "%d", byteOrder);
+	sendString(socket, outputBuffer, cmd);
 }
 
-void byteAtATime(int socket)
+int byteAtATime(int socket, char *buf)
 {
-	char buf[RECVBUFSIZE];
 	int recvMsgSize = 0;
-	if((recvMsgSize = recv(socket, buf, 1, 0)) < 0) //receive 1 byte at a time
+	int numRecvs = 1; //cmd byte
+	while((recvMsgSize = recv(socket, buf, 1, 0)) != 0) //still receiving bytes
 	{
-		//printf("Failed to recieve...\n");
+		numRecvs++;
+		totalBytesRead += recvMsgSize; //increment total bytes read
 	}
-	
+	sendNumRecvs(socket, numRecvs, 5);
 }
 
-void kByteAtATime(int socket)
+int kByteAtATime(int socket, char *buf)
 {
-	
+	int recvMsgSize = 0;
+	int numRecvs = 1; //cmd byte
+	while((recvMsgSize = recv(socket, buf, 1000, 0)) != 0) //still receiving bytes
+	{
+		numRecvs++;
+		totalBytesRead += recvMsgSize; //increment total bytes read
+	}
+	sendNumRecvs(socket, numRecvs, 6);
 }
 
 
@@ -200,16 +231,16 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 					givenLength(clntSock, recvBuffer, recvMsgSize);
 					break;
 				case 3: 
-					goodOrBadInt(clntSock, 3);
+					goodOrBadInt(clntSock, recvBuffer, recvMsgSize, 3);
 					break;
 				case 4: 
-					goodOrBadInt(clntSock, 4);
+					goodOrBadInt(clntSock, recvBuffer, recvMsgSize, 4);
 					break;
 				case 5: 
-					byteAtATime(clntSock);
+					byteAtATime(clntSock, recvBuffer);
 					break;
 				case 6: 
-					kByteAtATime(clntSock);
+					kByteAtATime(clntSock, recvBuffer);
 					break;
 			}
 		}
