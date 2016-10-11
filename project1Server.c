@@ -33,6 +33,7 @@ void sendString(int socket, char *buf, int cmd)
 	strcat(returnString, commandNames[cmd]);
 	strcat(returnString, ": ");
 	strcat(returnString, buf);
+	printf("Send string: %s\n", returnString);
 	if(send(socket, returnString, strlen(returnString), 0) != strlen(returnString))
 	{
 		//printf("Failed to send");
@@ -51,6 +52,7 @@ void sendNumRecvs(int socket, int numRecvs, int cmd)
 	strcat(returnString, commandNames[cmd]);
 	strcat(returnString, ": ");
 	strcat(returnString, (char *)&numRecvs);
+	printf("Send string: %s\n", returnString);
 	if(send(socket, returnString, strlen(returnString), 0) != strlen(returnString))
 	{
 		//printf("Failed to send");
@@ -66,6 +68,7 @@ int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
 	{
 		if(buf[i] == '\0') //found null terminated byte
 		{
+			printf("Null terminator found!\n");
 			sendString(socket, buf+1, 1); //exclude the cmd byte
 			return;
 		}
@@ -95,6 +98,7 @@ int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 	char *strLen;
 	int recvMsgSize = 0;
 	length = (uint16_t)atoi(buf+1);
+	printf("Length provided: %d\n", length);
 	if(length == bytesRead - 3) //buf[0] is the cmd, buf[1] and buf[2] are the 16 bit length, rest is the string
 	{
 		sendString(socket, buf+3, 2);
@@ -138,6 +142,7 @@ int byteAtATime(int socket, char *buf)
 		numRecvs++;
 		totalBytesRead += recvMsgSize; //increment total bytes read
 	}
+	printf("Byte at a time receives: %d\n", numRecvs);
 	sendNumRecvs(socket, numRecvs, 5);
 }
 
@@ -150,6 +155,7 @@ int kByteAtATime(int socket, char *buf)
 		numRecvs++;
 		totalBytesRead += recvMsgSize; //increment total bytes read
 	}
+	printf("KByte at a time receives: %d\n", numRecvs);
 	sendNumRecvs(socket, numRecvs, 6);
 }
 
