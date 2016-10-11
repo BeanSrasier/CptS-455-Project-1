@@ -28,8 +28,9 @@ void sendString(int socket, char *buf, int cmd)
 	uint16_t size = (uint16_t)strlen(buf); //buf contents
 	size += (uint16_t)strlen(commandNames[cmd]); //command name
 	size += (uint16_t)2; //colon and space
-	printf("Size of send: %d", size);
+	printf("Size of send: %d\n", size);
 	strcpy(returnString, (char *)&size);
+
 	strcat(returnString, commandNames[cmd]);
 	strcat(returnString, ": ");
 	strcat(returnString, buf);
@@ -47,8 +48,9 @@ void sendNumRecvs(int socket, int numRecvs, int cmd)
 	uint16_t size = (uint16_t)numRecvs; //numRecvs
 	size += (uint16_t)strlen(commandNames[cmd]); //command name
 	size += (uint16_t)2; //colon and space
-	printf("Size of send: %d", size);
+	printf("Size of send: %d\n", size);
 	strcpy(returnString, (char *)&size);
+
 	strcat(returnString, commandNames[cmd]);
 	strcat(returnString, ": ");
 	strcat(returnString, (char *)&numRecvs);
@@ -64,6 +66,7 @@ int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
 	int recvMsgSize = 0;
 	int offset = bytesRead;
 	int i;
+	printf("Offset: %d\n", offset);
 	for(i = 1; i < bytesRead; i++) //look through bytes received in the buffer
 	{
 		if(buf[i] == '\0') //found null terminated byte
@@ -73,6 +76,7 @@ int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
 			return;
 		}
 	}
+	printf("test\n");
 	while(1)
 	{
 		if((recvMsgSize = recv(socket, buf + bytesRead, RECVBUFSIZE - bytesRead, 0)) < 1) //expecting at least 1 byte
@@ -84,6 +88,7 @@ int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
 		{
 			if(buf[i+offset] == '\0') //found null terminated byte
 			{
+				printf("Test!\n");
 				sendString(socket, buf+1, 1);  //exclude the cmd byte
 				return;
 			}
@@ -225,12 +230,16 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 			{
 				break;
 			}
+			printf("Message Receive size in main: %d\n", recvMsgSize);
 			totalBytesRead += recvMsgSize;
 			//read into log file
-			cmd = (int)recvBuffer[0];
+			printf("Buffer: %s\n", recvBuffer);
+			cmd = (int)(recvBuffer[0]-'0');
+			printf("Command number: %d\n", cmd);
 			switch(cmd) //first byte is associated command
 			{
 				case 1: 
+					printf("In Null terminated command\n");
 					nullTerminated(clntSock, recvBuffer, recvMsgSize);
 					break;
 				case 2: 
@@ -250,17 +259,6 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 					break;
 			}
 		}
-		/*while(recvMsgSize > 0)
-		{
-			if(send(clntSock, recvBuffer, recvMsgSize, 0) != recvMsgSize)
-			{
-				printf("Failed to send...\n");
-			}
-			if((recvMsgSize = recv(clntSock, recvBuffer, 32, 0)) < 0)
-			{
-				printf("Failed to Recieve (v2)...\n");
-			}
-		}*/
 		printf("Server read %d bytes\n", totalBytesRead); //print #bytes received
 		close(clntSock);
 	}
