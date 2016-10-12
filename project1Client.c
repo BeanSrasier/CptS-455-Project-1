@@ -43,7 +43,7 @@ int DoGivenLength(int sock, char *arg)
 	length = htons(strlen(arg));
 	memcpy(message+1, &length, sizeof(length));
 
-	strcat(message+3, arg); //add the command arg string
+	strcpy(message+3, arg); //add the command arg to the string
 	printf("Sending to Server: %s\n", message+3);
 
 	if(send(sock, message, strlen(arg)+3, 0) < 0) //Send to server
@@ -57,45 +57,51 @@ int DoGivenLength(int sock, char *arg)
 	return;
 }
 
-int DoBadInt(int sock, char *arg)
+int DoBadInt(int socket, char *arg)
 {
-	char message[1000];
-	int unconverted = atoi(commands[2].arg); //convert to int
+	/*char message[BUFSIZE];
+	int badInt;
+	badInt = atoi(arg);
 
-	//message = (char *) &unconverted; //we will send WITHOUT applying htonl()
-	strcpy(message, "1");
-	memset(message, unconverted, sizeof(unconverted));
+	printf("badInt: %d\n", badInt);
+	strcpy(message, "3");
+	printf("Message: %s\n", message);
+	memcpy(message+1, &badInt, sizeof(badInt));
+	printf("size of message: %d\n", sizeof(badInt)+1);
 	printf("Sending to Server: %s\n", message);
 
-	/*if(SendToServer(sock, message, strlen(message)) == -1) //Send to server
+	if(send(socket, message, sizeof(badInt)+1, 0) < 0) //Send to server
+	{
+		printf("Send failed\n");
+	}
+	if(ReceiveAndOutput(socket) == -1) //Get back servers response and do output
 	{
 		return -1;
 	}*/
-	if(ReceiveAndOutput(sock) == -1) //Get back servers response and do output
-	{
-		return -1;
-	}
-	return;
+	return 0;
 }
 
-int DoGoodInt(int sock, char *arg)
+int DoGoodInt(int socket, char *arg)
 {
-	char message[1024];
-	int converted = htonl( (int) atoi(commands[3].arg) ); //Convert to int and apply htonl()
+	char message[BUFSIZE];
+	int number;
+	uint32_t goodInt;
+	number = atoi(arg);
+	goodInt = htonl(number);
 
-	//message = (char *) &converted; //Add the GoodInt to the message
-	strcpy(message, strcat("4", message) ); //append the command to the front
+	strcpy(message, "4");
+	memcpy(message+1, &goodInt, sizeof(goodInt));
 	printf("Sending to Server: %s\n", message);
 
-	/*if(SendToServer(sock, message, strlen(message)) == -1) //Send to server
+	if(send(socket, message, sizeof(goodInt)+1, 0) < 0) //Send to server
 	{
-		return -1;
-	}*/
-	if(ReceiveAndOutput(sock) == -1) //Get back servers response and do output
+		printf("Send failed\n");
+	}
+	if(ReceiveAndOutput(socket) == -1) //Get back servers response and do output
 	{
 		return -1;
 	}
-	return;
+	return 0;
 }
 
 int DoByte(int sock, char *arg)
@@ -238,7 +244,7 @@ int main(int argc, char *argv[])
 				printf("test\n");
 				DoGivenLength(sock, commands[i].arg);
 				break;
-			/*case badIntCmd:
+			case badIntCmd:
 				printf("PROCESS BadINT COMMAND\n");
 				DoBadInt(sock, commands[i].arg);
 				break;
@@ -246,7 +252,7 @@ int main(int argc, char *argv[])
 				printf("PROCESS GoodINT COMMAND\n");
 				DoGoodInt(sock, commands[i].arg);
 				break;
-			case byteAtATimeCmd:
+			/*case byteAtATimeCmd:
 				printf("PROCESS BYTEATATIME COMMAND\n");
 				DoByte(sock, commands[i].arg);
 				break;

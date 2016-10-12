@@ -115,11 +115,11 @@ int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 
 int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 {
+	char outputBuffer[BUFSIZE];
 	int recvMsgSize = 0;
 	int bytes;
-	unsigned short byteOrder;
-	char *outputBuffer;
-	if(bytesRead < 5) //should be 5, 1 for the cmd, 4 for the integer
+	uint32_t byteOrder;
+	while(bytesRead < 5) //should be 5, 1 for the cmd, 4 for the integer
 	{
 		if((recvMsgSize = recv(socket, buf+bytesRead, 5-bytesRead, 0)) < 0) //should receive rest of the bytes
 		{
@@ -127,11 +127,13 @@ int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 		}
 		totalBytesRead += recvMsgSize; //increment total bytes read
 	}
-	bytes = (int)atoi(buf+1);
-	byteOrder = htonl(bytes);
-	sprintf(outputBuffer, "%d", byteOrder);
+	memcpy(&byteOrder, buf+1, 4);
+	bytes = (int)ntohl(byteOrder);
+	printf("Bytes: %d\n", bytes);
+	memcpy(outputBuffer, &bytes, sizeof(bytes));
 	fputs(buf, outfile);
 	sendString(socket, outputBuffer, cmd);
+	return 0;
 }
 
 int byteAtATime(int socket, char *buf)
