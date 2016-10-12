@@ -26,19 +26,15 @@ void sendString(int socket, char *buf, int cmd)
 	lengthOfString = strlen(returnString+2);
 	size = htons(lengthOfString);
 
-	printf("Size of send(uint16): %x\n", size);
-
 	memcpy(returnString, &size, sizeof(size));
 
-	printf("Send string: %s\n", returnString+2);
-	printf("Size of send string: %d\n", strlen(returnString+2));
 	if(send(socket, returnString, lengthOfString+2, 0) != lengthOfString+2)
 	{
 		printf("Failed to send");
 	}
 }
 
-void sendNumRecvs(int socket, int numRecvs, int cmd)
+/*void sendNumRecvs(int socket, int numRecvs, int cmd)
 {
 	char *returnString;
 	uint16_t size = (uint16_t)numRecvs; //numRecvs
@@ -55,7 +51,7 @@ void sendNumRecvs(int socket, int numRecvs, int cmd)
 	{
 		printf("Failed to send");
 	}
-}
+}*/
 
 int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
 {
@@ -64,7 +60,6 @@ int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
 	{
 		if(buf[bytesRead - 1] == '\0')
 		{
-			printf("Null terminator found!\n");
 			fputs(buf, outfile);
 			sendString(socket, buf+1, nullTerminatedCmd); //exclude the cmd byte
 			return 0;
@@ -94,12 +89,10 @@ int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 	}
 	memcpy(&length, buf+1, 2); //length of buffer
 	stringLength = (int)ntohs(length);
-	printf("Length provided: %d\n", stringLength);
 	while(1)
 	{
 		if(stringLength == bytesRead - 3) //buf[0] is the cmd, buf[1] and buf[2] are the 16 bit length, rest is the string
 		{
-			printf("testing\n");
 			fputs(buf, outfile);
 			sendString(socket, buf+3, givenLengthCmd);
 			return 0; //am done
@@ -129,47 +122,26 @@ int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 	}
 	memcpy(&byteOrder, buf+1, 4);
 	bytes = (int)ntohl(byteOrder);
-	printf("Bytes: %d\n", bytes);
 	sprintf(outputBuffer, "%d", bytes);
-	//itoa(bytes, outputBuffer, 10);
-	//strcpy(outputBuffer, itoa(bytes);
-	//memcpy(outputBuffer, &bytes, sizeof(bytes));
-	printf("Output buffer: %s\n", outputBuffer);
 	fputs(buf, outfile);
 	sendString(socket, outputBuffer, cmd);
 	return 0;
 }
 
-int byteAtATime(int socket, char *buf)
+int xBytesAtATime(int socket, char *buf, int xBytes, int cmd)
 {
 	int recvMsgSize = 0;
 	int numRecvs = 1; //cmd byte
 	fputs(buf, outfile);
-	while((recvMsgSize = recv(socket, buf, 1, 0)) != 0) //still receiving bytes
+	while((recvMsgSize = recv(socket, buf, xBytes, 0)) != 0) //still receiving bytes
 	{
 		numRecvs++;
 		fputs(buf, outfile);
 		totalBytesRead += recvMsgSize; //increment total bytes read
 	}
-	printf("Byte at a time receives: %d\n", numRecvs);
-	sendNumRecvs(socket, numRecvs, 5);
+	printf("xByte receives: %d\n", numRecvs);
+	//sendNumRecvs(socket, numRecvs, cmd);
 }
-
-int kByteAtATime(int socket, char *buf)
-{
-	int recvMsgSize = 0;
-	int numRecvs = 1; //cmd byte
-	fputs(buf, outfile);
-	while((recvMsgSize = recv(socket, buf, 1000, 0)) != 0) //still receiving bytes
-	{
-		numRecvs++;
-		fputs(buf, outfile);
-		totalBytesRead += recvMsgSize; //increment total bytes read
-	}
-	printf("KByte at a time receives: %d\n", numRecvs);
-	sendNumRecvs(socket, numRecvs, 6);
-}
-
 
 int main(int argc, char *argv[]) //argv[1] is the port to listen to
 {
@@ -215,7 +187,6 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 		return 0;
 	}
 
-        printf("Entering while(run) loop\n");
 	while(1) //change to if ctrl-c is hit
 	{
 		clntAddrLen = sizeof(clntAddr);
@@ -234,15 +205,12 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 			{
 				break;
 			}
-			printf("Message Receive size in main: %d\n", recvMsgSize);
 			totalBytesRead += recvMsgSize;
-			printf("Buffer: %s\n", recvBuffer);
 			cmd = (int)(recvBuffer[0]-'0');
 			printf("Command number: %d\n", cmd);
 			switch(cmd) //first byte is associated command
 			{
 				case nullTerminatedCmd: 
-					printf("In Null terminated command\n");
 					nullTerminated(clntSock, recvBuffer, recvMsgSize);
 					break;
 				case givenLengthCmd: 
@@ -255,10 +223,10 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 					goodOrBadInt(clntSock, recvBuffer, recvMsgSize, 4);
 					break;
 				case byteAtATimeCmd: 
-					byteAtATime(clntSock, recvBuffer);
+					xBytesAtATime(clntSock, recvBuffer, 1, byteAtATimeCmd);
 					break;
 				case kByteAtATimeCmd: 
-					kByteAtATime(clntSock, recvBuffer);
+					xBytesAtATime(clntSock, recvBuffer, 1000, kByteAtATimeCmd);
 					break;
 			}
 		}

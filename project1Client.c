@@ -17,20 +17,18 @@ int DoNullTerminated(int socket, char *arg)
 	strcpy(message, "1");
   	strcat(message, arg); //cat the message onto the cmd
 	strcat(message, "\0"); //Add null terminator
-	printf("Sending to Server: %s\n", message);
 
 	if((bytesRead = send(socket, message, strlen(message) + 1, 0)) < 0) //Send server the null terminated string
 	{
 		//error sending
 	}
-	printf("Sent %d bytes to the server\n", bytesRead);
 
 	//Recieve
 	if(ReceiveAndOutput(socket) == -1) //Get back servers response and do output
 	{
 		return -1;
 	}
-	return;
+	return 0;
 }
 
 int DoGivenLength(int sock, char *arg)
@@ -44,7 +42,6 @@ int DoGivenLength(int sock, char *arg)
 	memcpy(message+1, &length, sizeof(length));
 
 	strcpy(message+3, arg); //add the command arg to the string
-	printf("Sending to Server: %s\n", message+3);
 
 	if(send(sock, message, strlen(arg)+3, 0) < 0) //Send to server
 	{
@@ -54,7 +51,7 @@ int DoGivenLength(int sock, char *arg)
 	{
 		return -1;
 	}
-	return;
+	return 0;
 }
 
 int DoBadInt(int socket, char *arg)
@@ -63,13 +60,8 @@ int DoBadInt(int socket, char *arg)
 	int badInt;
 	badInt = atoi(arg);
 
-	printf("badInt: %d\n", badInt);
 	strcpy(message, "3");
-	printf("Message: %s\n", message);
-	//strcat(message, (char *)&badInt);
 	memcpy(message+1, &badInt, sizeof(badInt));
-	printf("size of message: %d\n", sizeof(badInt)+1);
-	printf("Sending to Server: %s\n", message);
 
 	if(send(socket, message, sizeof(badInt)+1, 0) < 0) //Send to server
 	{
@@ -92,7 +84,6 @@ int DoGoodInt(int socket, char *arg)
 
 	strcpy(message, "4");
 	memcpy(message+1, &goodInt, sizeof(goodInt));
-	printf("Sending to Server: %s\n", message);
 
 	if(send(socket, message, sizeof(goodInt)+1, 0) < 0) //Send to server
 	{
@@ -105,17 +96,42 @@ int DoGoodInt(int socket, char *arg)
 	return 0;
 }
 
-int DoByte(int sock, char *arg)
+int sendXBytes(int socket, char *arg, int xBytes, char *cmd)
 {
-	//printf("%s: ", commandNames[5]);
-	//SendToServer("5", sock, strlen(message));
-	return 0;
-}
+	char message[BUFSIZE];
+	int number, bytesSent = 0;
+	uint32_t numBytes;
+	number = atoi(arg);
+	numBytes = htonl(number);
+	strcpy(message, cmd);
+	memcpy(message+1, &numBytes, sizeof(numBytes));
 
-int DoKByte(int sock, char *arg)
-{
-	//printf("%s: ", commandNames[6]);
-	//SendToServer("6", sock, strlen(message));
+	if(send(socket, message, sizeof(numBytes)+1, 0) < 0) //Send to server
+	{
+		printf("Send failed\n");
+	}
+	while(bytesSent != numBytes) //need to send numBytes amount of bytes
+	{
+		if(bytesSent % 1000 == 0) //alternate every 1000 bytes between 1's and 0's
+		{
+			if((bytesSent / 1000) % 2 == 0) //even
+			{
+				//message = {0};
+			}
+			else //odd
+			{
+				//message = {1};
+			}
+		}
+		if((bytesSent += send(socket, message, xBytes, 0)) < 0)
+		{
+			//send failed
+		}
+	}
+	if(ReceiveAndOutput(socket) == -1) //Get back servers response and do output
+	{
+		return -1;
+	}
 	return 0;
 }
 
@@ -127,7 +143,6 @@ int ReceiveAndOutput(int socket)
 	unsigned int totalBytesRcvd = 0; // Count of total bytes received
 	uint16_t messageSize;
 
-	printf("Entering first While loop of Receive\n");
 	while(totalBytesRcvd < 2) //Receive until we get 2 bytes (length of buffer)
 	{
 		if((numBytes = recv(socket, buffer, BUFSIZE - totalBytesRcvd, 0)) < 0)
@@ -140,12 +155,9 @@ int ReceiveAndOutput(int socket)
 			return -1;
 		}
 		totalBytesRcvd += numBytes;
-		printf("We have now recieved: %d bytes\n", totalBytesRcvd);
 	}
-	printf("Out of the first loop!\n");
 	memcpy(&messageSize, buffer, 2);
 	messageLen = (int)ntohs(messageSize);
-	printf("Message Len: %d\n", messageLen);
 
 	while(totalBytesRcvd < messageLen+2) //Loop through and keep receiving until we've received the entire message
 	{
@@ -242,7 +254,7 @@ int main(int argc, char *argv[])
 				DoNullTerminated(sock, commands[i].arg);
 				break;
 			case givenLengthCmd:
-				printf("test\n");
+				printf("PROCESS GIVEN LENGTH COMMAND\n");
 				DoGivenLength(sock, commands[i].arg);
 				break;
 			case badIntCmd:
@@ -255,11 +267,11 @@ int main(int argc, char *argv[])
 				break;
 			/*case byteAtATimeCmd:
 				printf("PROCESS BYTEATATIME COMMAND\n");
-				DoByte(sock, commands[i].arg);
+				sendXBytes(sock, commands[i].arg, 1, (char *)&commands[i].cmd);
 				break;
 			case kByteAtATimeCmd:
 				printf("PROCESS KBYTESATEATIME COMMAND\n");
-				DoKByte(sock, commands[i].arg);
+				sendXBytes(sock, commands[i].arg, 1000, (char *)&commands[i].cmd);
 				break;*/
 			case noMoreCommands:
 				printf("NO MORE COMMANDS\n");
