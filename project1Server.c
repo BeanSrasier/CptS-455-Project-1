@@ -130,7 +130,11 @@ int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 	memcpy(&byteOrder, buf+1, 4);
 	bytes = (int)ntohl(byteOrder);
 	printf("Bytes: %d\n", bytes);
-	strcpy(outputBuffer, (char *)&bytes);
+	sprintf(outputBuffer, "%d", bytes);
+	//itoa(bytes, outputBuffer, 10);
+	//strcpy(outputBuffer, itoa(bytes);
+	//memcpy(outputBuffer, &bytes, sizeof(bytes));
+	printf("Output buffer: %s\n", outputBuffer);
 	fputs(buf, outfile);
 	sendString(socket, outputBuffer, cmd);
 	return 0;
