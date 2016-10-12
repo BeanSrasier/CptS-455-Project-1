@@ -84,12 +84,20 @@ int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 	uint16_t length;
 	int stringLength;
 	int recvMsgSize = 0;
+	while(bytesRead < 3)
+	{
+		if((recvMsgSize = recv(socket, buf+bytesRead, BUFSIZE - bytesRead, 0)) < 0)
+		{
+			printf("Receive error\n");
+		}
+		bytesRead += recvMsgSize;
+	}
 	memcpy(&length, buf+1, 2); //length of buffer
 	stringLength = (int)ntohs(length);
-	printf("Length provided: %d\n", length);
+	printf("Length provided: %d\n", stringLength);
 	while(1)
 	{
-		if(length == bytesRead - 3) //buf[0] is the cmd, buf[1] and buf[2] are the 16 bit length, rest is the string
+		if(stringLength == bytesRead - 3) //buf[0] is the cmd, buf[1] and buf[2] are the 16 bit length, rest is the string
 		{
 			printf("testing\n");
 			fputs(buf, outfile);

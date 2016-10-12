@@ -46,7 +46,7 @@ int DoGivenLength(int sock, char *arg)
 	strcat(message+3, arg); //add the command arg string
 	printf("Sending to Server: %s\n", message+3);
 
-	if(send(sock, message, strlen(message), 0) < 0) //Send to server
+	if(send(sock, message, strlen(arg)+3, 0) < 0) //Send to server
 	{
 		return -1;
 	}
@@ -123,7 +123,7 @@ int ReceiveAndOutput(int socket)
 	printf("Entering first While loop of Receive\n");
 	while(totalBytesRcvd < 2) //Receive until we get 2 bytes (length of buffer)
 	{
-		if((numBytes = recv(socket, buffer, BUFSIZE, 0)) < 0)
+		if((numBytes = recv(socket, buffer, BUFSIZE - totalBytesRcvd, 0)) < 0)
 		{
 			printf("Receive failed\n");
 		}
@@ -230,10 +230,10 @@ int main(int argc, char *argv[])
 		printf("Command: %d\n", commands[i].cmd);
 		switch(commands[i].cmd)
 		{
-			/*case nullTerminatedCmd:
+			case nullTerminatedCmd:
 				printf("PROCESS NULL COMMAND\n");
 				DoNullTerminated(sock, commands[i].arg);
-				break;*/
+				break;
 			case givenLengthCmd:
 				printf("test\n");
 				DoGivenLength(sock, commands[i].arg);
@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
 			case kByteAtATimeCmd:
 				printf("PROCESS KBYTESATEATIME COMMAND\n");
 				DoKByte(sock, commands[i].arg);
-				break;
+				break;*/
 			case noMoreCommands:
 				printf("NO MORE COMMANDS\n");
 				timeToEnd = 1;
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
 			default:
 				printf("Entering default case\n");
 				timeToEnd = 1;
-				break;*/
+				break;
 		}
 	}
 	close(sock); //close the connection
