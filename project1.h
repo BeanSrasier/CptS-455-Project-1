@@ -11,6 +11,8 @@ typedef struct {
 #define kByteAtATimeCmd  (6)
 #define noMoreCommands (0)
 
+#define BUFSIZE (1000)
+
 /* This is the list of commands to be run by the client to demonstrate your program */
 static command commands[] = {
   {nullTerminatedCmd, "Sent as a null-terminated string"},
