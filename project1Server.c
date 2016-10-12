@@ -130,15 +130,23 @@ int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 
 int xBytesAtATime(int socket, char *buf, int xBytes, int cmd)
 {
-	int recvMsgSize = 0;
-	int numRecvs = 1; //cmd byte
+	int bytesReceived = 0;
+	int numRecvs = 1; //cmd byte and amount of bytes
+	uint32_t numBytes;
+	memcpy(&numBytes, buf+1, 4); //Amount of bytes to receive
 	fputs(buf, outfile);
-	while((recvMsgSize = recv(socket, buf, xBytes, 0)) != 0) //still receiving bytes
+
+	while(bytesReceived != numBytes)
 	{
+		if((bytesReceived += recv(socket, buf, xBytes, 0)) < 0)
+		{
+			printf("Receive failed\n");
+			return -1;
+		}
 		numRecvs++;
 		fputs(buf, outfile);
-		totalBytesRead += recvMsgSize; //increment total bytes read
 	}
+	totalBytesRead += bytesReceived;
 	printf("xByte receives: %d\n", numRecvs);
 	//sendNumRecvs(socket, numRecvs, cmd);
 }
@@ -206,7 +214,7 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 				break;
 			}
 			totalBytesRead += recvMsgSize;
-			cmd = (int)(recvBuffer[0]-'0');
+			cmd = (int)recvBuffer[0];
 			printf("Command number: %d\n", cmd);
 			switch(cmd) //first byte is associated command
 			{

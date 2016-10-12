@@ -14,13 +14,15 @@ int DoNullTerminated(int socket, char *arg)
 {
 	char message[1000];
 	int bytesRead = 0;
-	strcpy(message, "1");
+	
+	message[0] = 1;
+
   	strcat(message, arg); //cat the message onto the cmd
 	strcat(message, "\0"); //Add null terminator
 
 	if((bytesRead = send(socket, message, strlen(message) + 1, 0)) < 0) //Send server the null terminated string
 	{
-		//error sending
+		return -1;
 	}
 
 	//Recieve
@@ -36,7 +38,7 @@ int DoGivenLength(int sock, char *arg)
 	uint16_t length;
 	char message[BUFSIZE];
 
-	strcpy(message, "2");
+	message[0] = 2;
 
 	length = htons(strlen(arg));
 	memcpy(message+1, &length, sizeof(length));
@@ -60,12 +62,12 @@ int DoBadInt(int socket, char *arg)
 	int badInt;
 	badInt = atoi(arg);
 
-	strcpy(message, "3");
+	message[0] = 3;
 	memcpy(message+1, &badInt, sizeof(badInt));
 
 	if(send(socket, message, sizeof(badInt)+1, 0) < 0) //Send to server
 	{
-		printf("Send failed\n");
+		return -1;
 	}
 	if(ReceiveAndOutput(socket) == -1) //Get back servers response and do output
 	{
@@ -82,12 +84,12 @@ int DoGoodInt(int socket, char *arg)
 	number = atoi(arg);
 	goodInt = htonl(number);
 
-	strcpy(message, "4");
+	message[0] = 4;
 	memcpy(message+1, &goodInt, sizeof(goodInt));
 
 	if(send(socket, message, sizeof(goodInt)+1, 0) < 0) //Send to server
 	{
-		printf("Send failed\n");
+		return -1;
 	}
 	if(ReceiveAndOutput(socket) == -1) //Get back servers response and do output
 	{
@@ -96,21 +98,21 @@ int DoGoodInt(int socket, char *arg)
 	return 0;
 }
 
-int sendXBytes(int socket, char *arg, int xBytes, char *cmd)
+int sendXBytes(int socket, char *arg, int xBytes, int cmd)
 {
 	char message[BUFSIZE];
 	int number, bytesSent = 0;
 	uint32_t numBytes;
 	number = atoi(arg);
 	numBytes = htonl(number);
-	strcpy(message, cmd);
+	message[0] = cmd;
 	memcpy(message+1, &numBytes, sizeof(numBytes));
 
 	if(send(socket, message, sizeof(numBytes)+1, 0) < 0) //Send to server
 	{
-		printf("Send failed\n");
+		return -1;
 	}
-	while(bytesSent != numBytes) //need to send numBytes amount of bytes
+	while(bytesSent != number) //need to send numBytes amount of bytes
 	{
 		if(bytesSent % 1000 == 0) //alternate every 1000 bytes between 1's and 0's
 		{
@@ -267,11 +269,11 @@ int main(int argc, char *argv[])
 				break;
 			/*case byteAtATimeCmd:
 				printf("PROCESS BYTEATATIME COMMAND\n");
-				sendXBytes(sock, commands[i].arg, 1, (char *)&commands[i].cmd);
+				sendXBytes(sock, commands[i].arg, 1, commands[i].cmd);
 				break;
 			case kByteAtATimeCmd:
 				printf("PROCESS KBYTESATEATIME COMMAND\n");
-				sendXBytes(sock, commands[i].arg, 1000, (char *)&commands[i].cmd);
+				sendXBytes(sock, commands[i].arg, 1000, commands[i].cmd);
 				break;*/
 			case noMoreCommands:
 				printf("NO MORE COMMANDS\n");
