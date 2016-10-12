@@ -15,6 +15,7 @@
 
 int run;
 int totalBytesRead;
+FILE *outfile;
 
 void CtrlCTrap(int signal)
 {
@@ -23,14 +24,18 @@ void CtrlCTrap(int signal)
 
 void sendString(int socket, char *buf, int cmd)
 {
-	char *returnString;
-	//write buffer to log file
-	uint16_t size = (uint16_t)strlen(buf); //buf contents
-	size += (uint16_t)strlen(commandNames[cmd]); //command name
-	size += (uint16_t)2; //colon and space
-	printf("Size of send: %d\n", size);
-	strcpy(returnString, (char *)&size);
-
+	char returnString[1000];
+	int integerSize;
+	uint16_t size;
+	integerSize = strlen(buf); //buf contents
+	integerSize += strlen(commandNames[cmd]); //command name
+	integerSize += 2; //colon and space
+	size = htons(integerSize);
+	printf("Size of send(int): %d\n", integerSize);
+	printf("Size of send(uint16): %d\n", size);
+	printf("Sizeof(size): %d\n", sizeof(size));
+	memcpy(returnString, (char *)&size, sizeof(size));
+	printf("Send string after memcpy: %s\n", returnString);
 	strcat(returnString, commandNames[cmd]);
 	strcat(returnString, ": ");
 	strcat(returnString, buf);
@@ -44,7 +49,6 @@ void sendString(int socket, char *buf, int cmd)
 void sendNumRecvs(int socket, int numRecvs, int cmd)
 {
 	char *returnString;
-	//write buffer to log file
 	uint16_t size = (uint16_t)numRecvs; //numRecvs
 	size += (uint16_t)strlen(commandNames[cmd]); //command name
 	size += (uint16_t)2; //colon and space
@@ -72,6 +76,7 @@ int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
 		if(buf[i] == '\0') //found null terminated byte
 		{
 			printf("Null terminator found!\n");
+			fputs(buf, outfile);
 			sendString(socket, buf+1, 1); //exclude the cmd byte
 			return;
 		}
@@ -89,6 +94,7 @@ int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
 			if(buf[i+offset] == '\0') //found null terminated byte
 			{
 				printf("Test!\n");
+				fputs(buf, outfile);
 				sendString(socket, buf+1, 1);  //exclude the cmd byte
 				return;
 			}
@@ -106,6 +112,7 @@ int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 	printf("Length provided: %d\n", length);
 	if(length == bytesRead - 3) //buf[0] is the cmd, buf[1] and buf[2] are the 16 bit length, rest is the string
 	{
+		fputs(buf, outfile);
 		sendString(socket, buf+3, 2);
 		return; //am done
 	}
@@ -114,6 +121,7 @@ int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 		//print error
 	}
 	totalBytesRead += recvMsgSize; //increment total bytes read
+	fputs(buf, outfile);
 	sendString(socket, buf+3, 2);
 	return; //am done
 }
@@ -135,6 +143,7 @@ int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 	bytes = (int)atoi(buf+1);
 	byteOrder = htonl(bytes);
 	sprintf(outputBuffer, "%d", byteOrder);
+	fputs(buf, outfile);
 	sendString(socket, outputBuffer, cmd);
 }
 
@@ -142,9 +151,11 @@ int byteAtATime(int socket, char *buf)
 {
 	int recvMsgSize = 0;
 	int numRecvs = 1; //cmd byte
+	fputs(buf, outfile);
 	while((recvMsgSize = recv(socket, buf, 1, 0)) != 0) //still receiving bytes
 	{
 		numRecvs++;
+		fputs(buf, outfile);
 		totalBytesRead += recvMsgSize; //increment total bytes read
 	}
 	printf("Byte at a time receives: %d\n", numRecvs);
@@ -155,9 +166,11 @@ int kByteAtATime(int socket, char *buf)
 {
 	int recvMsgSize = 0;
 	int numRecvs = 1; //cmd byte
+	fputs(buf, outfile);
 	while((recvMsgSize = recv(socket, buf, 1000, 0)) != 0) //still receiving bytes
 	{
 		numRecvs++;
+		fputs(buf, outfile);
 		totalBytesRead += recvMsgSize; //increment total bytes read
 	}
 	printf("KByte at a time receives: %d\n", numRecvs);
@@ -220,6 +233,7 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 		{
 			//printf("Failed to Accept...\n");
 		}
+		outfile = fopen("outfile.txt", "w");
 		while(run)
 		{
 			if((recvMsgSize = recv(clntSock, recvBuffer, RECVBUFSIZE, 0)) < 0) //receive 1000 bytes (first read)
@@ -260,6 +274,7 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 			}
 		}
 		printf("Server read %d bytes\n", totalBytesRead); //print #bytes received
+		fclose(outfile);
 		close(clntSock);
 	}
 }
