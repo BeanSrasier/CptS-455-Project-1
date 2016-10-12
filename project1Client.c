@@ -59,13 +59,14 @@ int DoGivenLength(int sock, char *arg)
 
 int DoBadInt(int socket, char *arg)
 {
-	/*char message[BUFSIZE];
+	char message[BUFSIZE];
 	int badInt;
 	badInt = atoi(arg);
 
 	printf("badInt: %d\n", badInt);
 	strcpy(message, "3");
 	printf("Message: %s\n", message);
+	//strcat(message, (char *)&badInt);
 	memcpy(message+1, &badInt, sizeof(badInt));
 	printf("size of message: %d\n", sizeof(badInt)+1);
 	printf("Sending to Server: %s\n", message);
@@ -77,7 +78,7 @@ int DoBadInt(int socket, char *arg)
 	if(ReceiveAndOutput(socket) == -1) //Get back servers response and do output
 	{
 		return -1;
-	}*/
+	}
 	return 0;
 }
 
