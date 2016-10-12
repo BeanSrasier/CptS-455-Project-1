@@ -26,20 +26,27 @@ void sendString(int socket, char *buf, int cmd)
 {
 	char returnString[1000];
 	int integerSize;
-	uint16_t size;
+	unsigned short size;
 	integerSize = strlen(buf); //buf contents
 	integerSize += strlen(commandNames[cmd]); //command name
 	integerSize += 2; //colon and space
 	size = htons(integerSize);
 	printf("Size of send(int): %d\n", integerSize);
 	printf("Size of send(uint16): %d\n", size);
-	printf("Sizeof(size): %d\n", sizeof(size));
-	memcpy(returnString, (char *)&size, sizeof(size));
+	//printf("Sizeof(size): %d\n", sizeof(size));
+
+	//*((unsigned short *) returnString) = size;
+	//memcpy(returnString, (char *)&size, sizeof(size));
+	//returnString[0] = size & 0xFF;
+	//returnString[1] = size >> 8;
+
+	sprintf(returnString, "%d", size);
 	printf("Send string after memcpy: %s\n", returnString);
 	strcat(returnString, commandNames[cmd]);
 	strcat(returnString, ": ");
 	strcat(returnString, buf);
 	printf("Send string: %s\n", returnString);
+	printf("Size of send string: %d\n", strlen(returnString));
 	if(send(socket, returnString, strlen(returnString), 0) != strlen(returnString))
 	{
 		//printf("Failed to send");
