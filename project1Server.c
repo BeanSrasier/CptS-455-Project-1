@@ -16,24 +16,23 @@ FILE *outfile;
 void sendString(int socket, char *buf, int cmd)
 {
 	char returnString[BUFSIZE];
-	int integerSize;
+	int lengthOfString;
 	uint16_t size;
-	integerSize = strlen(buf); //buf contents
-	integerSize += strlen(commandNames[cmd]); //command name
-	integerSize += 2; //colon and space
-	size = htons(integerSize);
-
-	printf("Size of send(int): %d\n", integerSize);
-	printf("Size of send(uint16): %d\n", size);
-
-	memcpy(returnString, (char *)&size, sizeof(size));
 
 	strcpy(returnString+2, commandNames[cmd]);
 	strcat(returnString, ": ");
 	strcat(returnString, buf);
-	printf("Send string: %s\n", returnString);
-	printf("Size of send string: %d\n", strlen(returnString));
-	if(send(socket, returnString, strlen(returnString), 0) != strlen(returnString))
+
+	lengthOfString = strlen(returnString+2);
+	size = htons(lengthOfString);
+
+	printf("Size of send(uint16): %x\n", size);
+
+	memcpy(returnString, &size, sizeof(size));
+
+	printf("Send string: %s\n", returnString+2);
+	printf("Size of send string: %d\n", strlen(returnString+2));
+	if(send(socket, returnString, lengthOfString+2, 0) != lengthOfString+2)
 	{
 		printf("Failed to send");
 	}
