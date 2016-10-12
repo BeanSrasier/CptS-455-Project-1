@@ -15,9 +15,9 @@ FILE *outfile;
 
 void sendString(int socket, char *buf, int cmd)
 {
-	char returnString[1000];
+	char returnString[BUFSIZE];
 	int integerSize;
-	unsigned short size;
+	uint16_t size;
 	integerSize = strlen(buf); //buf contents
 	integerSize += strlen(commandNames[cmd]); //command name
 	integerSize += 2; //colon and space
@@ -28,7 +28,7 @@ void sendString(int socket, char *buf, int cmd)
 
 	memcpy(returnString, (char *)&size, sizeof(size));
 
-	strcat(returnString, commandNames[cmd]);
+	strcpy(returnString+2, commandNames[cmd]);
 	strcat(returnString, ": ");
 	strcat(returnString, buf);
 	printf("Send string: %s\n", returnString);
@@ -61,35 +61,22 @@ void sendNumRecvs(int socket, int numRecvs, int cmd)
 int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
 {
 	int recvMsgSize = 0;
-	int offset = bytesRead;
-	int i;
-	for(i = 1; i < bytesRead; i++) //look through bytes received in the buffer excluding the cmd byte at the beginning
+	while(1)
 	{
-		if(buf[i] == '\0') //found null terminated byte
+		if(buf[bytesRead - 1] == '\0')
 		{
 			printf("Null terminator found!\n");
 			fputs(buf, outfile);
-			sendString(socket, buf+1, 1); //exclude the cmd byte
-			return;
+			sendString(socket, buf+1, nullTerminatedCmd); //exclude the cmd byte
+			return 0;
 		}
-	}
-	while(1)
-	{
-		if((recvMsgSize = recv(socket, buf + bytesRead, BUFSIZE - bytesRead, 0)) < 1) //expecting at least 1 byte
+		if((recvMsgSize = recv(socket, buf + bytesRead, BUFSIZE - bytesRead, 0)) < 1)
 		{
 			//failed to receive or connection severed
+			return -1;
 		}
 		totalBytesRead += recvMsgSize; //increment total bytes read
-		for(i = 0; i < recvMsgSize; i++)
-		{
-			if(buf[i+offset] == '\0') //found null terminated byte
-			{
-				fputs(buf, outfile);
-				sendString(socket, buf+1, 1);  //exclude the cmd byte
-				return;
-			}
-		}
-		offset += recvMsgSize; //increment offset
+		bytesRead += recvMsgSize;
 	}
 }
 
@@ -238,23 +225,23 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 			printf("Command number: %d\n", cmd);
 			switch(cmd) //first byte is associated command
 			{
-				case 1: 
+				case nullTerminatedCmd: 
 					printf("In Null terminated command\n");
 					nullTerminated(clntSock, recvBuffer, recvMsgSize);
 					break;
-				case 2: 
+				case givenLengthCmd: 
 					givenLength(clntSock, recvBuffer, recvMsgSize);
 					break;
-				case 3: 
+				case badIntCmd: 
 					goodOrBadInt(clntSock, recvBuffer, recvMsgSize, 3);
 					break;
-				case 4: 
+				case goodIntCmd: 
 					goodOrBadInt(clntSock, recvBuffer, recvMsgSize, 4);
 					break;
-				case 5: 
+				case byteAtATimeCmd: 
 					byteAtATime(clntSock, recvBuffer);
 					break;
-				case 6: 
+				case kByteAtATimeCmd: 
 					kByteAtATime(clntSock, recvBuffer);
 					break;
 			}

@@ -13,15 +13,17 @@
 int DoNullTerminated(int sock, char *arg)
 {
 	char message[1000];
+	int bytesRead = 0;
 	strcpy(message, "1");
-  	strcat(message, cmd); //cat the message onto the cmd
+  	strcat(message, arg); //cat the message onto the cmd
 	strcat(message, "\0"); //Add null terminator
 	printf("Sending to Server: %s\n", message);
 
-	if(SendToServer(message, sock, strlen(message) + 1)) //Send server the null terminated string
+	if((bytesRead = send(sock, message, strlen(message) + 1, 0)) < 0) //Send server the null terminated string
 	{
-		return -1;
+		//error sending
 	}
+	printf("Sent %d bytes to the server\n", bytesRead);
 
 	//Recieve
 	if(ReceiveAndOutput(sock, BUFSIZE, 2) == -1) //Get back servers response and do output
@@ -31,7 +33,7 @@ int DoNullTerminated(int sock, char *arg)
 	return;
 }
 
-int DoGivenLength(int sock)
+int DoGivenLength(int sock, char *arg)
 {
 	unsigned short i;
 	int tempLength;
@@ -64,10 +66,10 @@ int DoGivenLength(int sock)
 	strcat(message, commands[1].arg); //add the command arg string
 	printf("Sending to Server: %s\n", message);
 
-	if(SendToServer(message, sock, strlen(message)) == -1) //Send to server
+	/*if(SendToServer(sock, message, strlen(message)) == -1) //Send to server
 	{
 		return -1;
-	}
+	}*/
 	if(ReceiveAndOutput(sock) == -1) //Get back servers response and do output
 	{
 		return -1;
@@ -75,7 +77,7 @@ int DoGivenLength(int sock)
 	return;
 }
 
-int DoBadInt(int sock)
+int DoBadInt(int sock, char *arg)
 {
 	char message[1000];
 	int unconverted = atoi(commands[2].arg); //convert to int
@@ -85,10 +87,10 @@ int DoBadInt(int sock)
 	memset(message, unconverted, sizeof(unconverted));
 	printf("Sending to Server: %s\n", message);
 
-	if(SendToServer(message, sock, strlen(message)) == -1) //Send to server
+	/*if(SendToServer(sock, message, strlen(message)) == -1) //Send to server
 	{
 		return -1;
-	}
+	}*/
 	if(ReceiveAndOutput(sock) == -1) //Get back servers response and do output
 	{
 		return -1;
@@ -96,7 +98,7 @@ int DoBadInt(int sock)
 	return;
 }
 
-int DoGoodInt(int sock)
+int DoGoodInt(int sock, char *arg)
 {
 	char message[1024];
 	int converted = htonl( (int) atoi(commands[3].arg) ); //Convert to int and apply htonl()
@@ -105,10 +107,10 @@ int DoGoodInt(int sock)
 	strcpy(message, strcat("4", message) ); //append the command to the front
 	printf("Sending to Server: %s\n", message);
 
-	if(SendToServer(message, sock, strlen(message)) == -1) //Send to server
+	/*if(SendToServer(sock, message, strlen(message)) == -1) //Send to server
 	{
 		return -1;
-	}
+	}*/
 	if(ReceiveAndOutput(sock) == -1) //Get back servers response and do output
 	{
 		return -1;
@@ -116,45 +118,34 @@ int DoGoodInt(int sock)
 	return;
 }
 
-int DoByte(int sock)
+int DoByte(int sock, char *arg)
 {
 	//printf("%s: ", commandNames[5]);
 	//SendToServer("5", sock, strlen(message));
 	return 0;
 }
 
-int DoKByte(int sock)
+int DoKByte(int sock, char *arg)
 {
 	//printf("%s: ", commandNames[6]);
 	//SendToServer("6", sock, strlen(message));
 	return 0;
 }
 
-int SendToServer(char* message, int sock, int messageLen) 
+/*int SendToServer(int sock, char* message, int messageLen) 
 {
-	int numBytes; //Number of bytes sent in each send
-	unsigned int totalBytesSent = 0; // Count of total bytes sent to server
+	//int numBytes; //Number of bytes sent in each send
+	int totalBytesSent = 0; // Count of total bytes sent to server
 	printf("In send to server\n");
 	printf("Message length: %d\n", messageLen);
-	while(totalBytesSent < messageLen) //Keep sending until we have sent the whole message
-	{ 
-		numBytes = send(sock, message+totalBytesSent, messageLen - totalBytesSent, 0); // Send the string to the server
-		if (numBytes < 0)
-		{
-			printf("Was not able to send\n");
-			return -1;
-		} 
-		totalBytesSent += numBytes; //Add what we've read to the total
-		if (totalBytesSent > messageLen)
-		{ 
-			printf("We sent an unexpectedly larger number of bytes. Terminate\n");
-			return -1;
-		}
+	if((totalBytesSent = send(sock, message, messageLen, 0)) < 0)
+	{
+		//send error
 	}
 	printf("Sent %d bytes to the server\n", totalBytesSent);
 	printf("Finished sending to server\n");
 	return 0;
-}
+}*/
 
 int ReceiveAndOutput(int sock, int maxLength, int minReq)
 {
@@ -275,7 +266,7 @@ int main(int argc, char *argv[])
 	}
 	printf("Now Connected to server\n");
 
-	for(i = 0; i < strlen(commands); i++) //Loop through all commands
+	for(i = 0;; i++) //Loop through all commands (will exit upon hitting no more commands)
 	{
 		if(timeToEnd)
 		{
@@ -288,24 +279,24 @@ int main(int argc, char *argv[])
 				DoNullTerminated(sock, commands[i].arg);
 				break;
 			/*case givenLengthCmd:
-				DoGivenLength(sock);
+				DoGivenLength(sock, commands[i].arg);
 				break;
 			case badIntCmd:
 				printf("PROCESS BadINT COMMAND\n");
-				DoBadInt(sock);
+				DoBadInt(sock, commands[i].arg);
 				break;
 			case goodIntCmd:
 				printf("PROCESS GoodINT COMMAND\n");
-				DoGoodInt(sock);
+				DoGoodInt(sock, commands[i].arg);
 				break;
 			case byteAtATimeCmd:
 				printf("PROCESS BYTEATATIME COMMAND\n");
-				DoByte(sock);
+				DoByte(sock, commands[i].arg);
 				break;
 			case kByteAtATimeCmd:
 				printf("PROCESS KBYTESATEATIME COMMAND\n");
-				DoKByte(sock);
-				break;
+				DoKByte(sock, commands[i].arg);
+				break;*/
 			case noMoreCommands:
 				printf("NO MORE COMMANDS\n");
 				timeToEnd = 1;
@@ -313,7 +304,7 @@ int main(int argc, char *argv[])
 			default:
 				printf("Entering default case\n");
 				timeToEnd = 1;
-				break;*/
+				break;
 		}
 	}
 	close(sock); //close the connection
