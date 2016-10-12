@@ -41,12 +41,16 @@ int DoNullTerminated(int sock)
 int DoGivenLength(int sock)
 {
   uint16_t len;
-  char message[1024];
+  char message[1024], temp[1024];
   char lo, hi;
-  printf("Length to send before htonl: %d\n", strlen(commands[1].arg));
+  //printf("TRYING DoGivenLength()\n");
+  printf("Length to send BEFORE htonl: %d\n", strlen(commands[1].arg));
   len = htons((uint16_t)strlen(commands[1].arg)); //Convert the string length to network byte order
-  printf("Length to send after htonl: %d\n", len);
+  printf("Length to send AFTER htonl: %d\n", len);
   strcpy(message, "2");
+  
+  memcpy(message+1, (void *)&len, sizeof(len));
+  //printf("temp AFTER memcpy:%s\n", temp);
 
   /*lo = len & 0xFF;
   hi = len >> 8;
@@ -54,6 +58,7 @@ int DoGivenLength(int sock)
   message[2] = hi;*/
   //strcat(message, itoa(len));  //turn network byte order length into a string
 
+  strcat(message, temp);
   strcat(message, commands[1].arg); //add the command arg string
   printf("Sending to Server: %s\n", message);
 
@@ -71,10 +76,11 @@ int DoGivenLength(int sock)
 int DoBadInt(int sock)
 {
   char message[1024];
-  int unconverted = atoi(commands[3].arg); //convert to int
-
+  int unconverted = atoi(commands[2].arg); //convert to int
+  
   //message = (char *) &unconverted; //we will send WITHOUT applying htonl()
-  strcpy(message, strcat("3", message) ); //append the command to the front
+  strcpy(message, "1");
+  memset(message, unconverted, sizeof(unconverted));
   printf("Sending to Server: %s\n", message);
 
   if(SendToServer(message, sock, strlen(message)) == -1) //Send to server
@@ -91,8 +97,8 @@ int DoBadInt(int sock)
 int DoGoodInt(int sock)
 {
   char message[1024];
-  int converted = htonl( (int) atoi(commands[4].arg) ); //Convert to int and apply htonl()
-
+  int converted = htonl( (int) atoi(commands[3].arg) ); //Convert to int and apply htonl()
+  
   //message = (char *) &converted; //Add the GoodInt to the message
   strcpy(message, strcat("4", message) ); //append the command to the front
   printf("Sending to Server: %s\n", message);
@@ -264,28 +270,35 @@ int main(int argc, char *argv[]) {
     }
     switch(i){
       case nullTerminatedCmd:
-	printf("In null switch\n");
+	printf("PROCESS NULL COMMAND\n");
         DoNullTerminated(sock);
         break;
-      /*case givenLengthCmd:
+      case givenLengthCmd:
         DoGivenLength(sock);
+        //continue;
         break;
-      /*case badIntCmd:
+      case badIntCmd:
+        printf("PROCESS BadINT COMMAND\n");
         DoBadInt(sock);
         break;
       case goodIntCmd:
+        printf("PROCESS GoodINT COMMAND\n");
         DoGoodInt(sock);
         break;
       case byteAtATimeCmd:
+        printf("PROCESS BYTEATATIME COMMAND\n");
         DoByte(sock);
         break;
       case kByteAtATimeCmd:
+        printf("PROCESS KBYTESATEATIME COMMAND\n");
         DoKByte(sock);
         break;
       case noMoreCommands:
+        printf("NO MORE COMMANDS\n");
         timeToEnd = 1;
-        break;*/
+        break;
       default:
+        printf("Entering default case\n");
         timeToEnd = 1;
 	break;
     }
