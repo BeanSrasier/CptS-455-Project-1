@@ -35,41 +35,21 @@ int DoNullTerminated(int socket, char *arg)
 
 int DoGivenLength(int sock, char *arg)
 {
-	unsigned short i;
-	int tempLength;
+	uint16_t length;
+	char message[BUFSIZE];
 
-	uint16_t len;
-	char message[1024], temp[1024];
-	char lo, hi;
-
-	tempLength = strlen(commands[1].arg);
-	i = htons(tempLength);
-	*((unsigned short *) temp) = i;
-	printf("temp is: %s \n\n", temp);
-
-	//printf("TRYING DoGivenLength()\n");
-	printf("Length to send BEFORE htonl: %d\n", strlen(commands[1].arg));
-	len = htons((uint16_t)strlen(commands[1].arg)); //Convert the string length to network byte order
-	printf("Length to send AFTER htonl: %d\n", len);
 	strcpy(message, "2");
 
-	memcpy(message+1, (void *)&len, sizeof(len));
-	//printf("temp AFTER memcpy:%s\n", temp);
+	length = htons(strlen(arg));
+	memcpy(message+1, &length, sizeof(length));
 
-	/*lo = len & 0xFF;
-	hi = len >> 8;
-	message[1] = lo;
-	message[2] = hi;*/
-	//strcat(message, itoa(len));  //turn network byte order length into a string
+	strcat(message+3, arg); //add the command arg string
+	printf("Sending to Server: %s\n", message+3);
 
-	strcat(message, temp);
-	strcat(message, commands[1].arg); //add the command arg string
-	printf("Sending to Server: %s\n", message);
-
-	/*if(SendToServer(sock, message, strlen(message)) == -1) //Send to server
+	if(send(sock, message, strlen(message), 0) < 0) //Send to server
 	{
 		return -1;
-	}*/
+	}
 	if(ReceiveAndOutput(sock) == -1) //Get back servers response and do output
 	{
 		return -1;
@@ -174,10 +154,8 @@ int ReceiveAndOutput(int socket)
 		totalBytesRcvd += numBytes;
 	}
 
-	buffer[messageSize+2] = '\0';    // Terminate the string!
+	buffer[messageLen+2] = '\0'; //terminate the string
 	printf("%s\n", buffer+2);
-	//fputs(buffer+2, stdout);      // Print the buffer without the 2byte length at the front
-	//fputc('\n', stdout); //Print out a new line for the next output that happens
 	return 0;
 }
 
@@ -249,16 +227,18 @@ int main(int argc, char *argv[])
 		{
 			break;
 		}
+		printf("Command: %d\n", commands[i].cmd);
 		switch(commands[i].cmd)
 		{
-			case nullTerminatedCmd:
+			/*case nullTerminatedCmd:
 				printf("PROCESS NULL COMMAND\n");
 				DoNullTerminated(sock, commands[i].arg);
-				break;
-			/*case givenLengthCmd:
+				break;*/
+			case givenLengthCmd:
+				printf("test\n");
 				DoGivenLength(sock, commands[i].arg);
 				break;
-			case badIntCmd:
+			/*case badIntCmd:
 				printf("PROCESS BadINT COMMAND\n");
 				DoBadInt(sock, commands[i].arg);
 				break;
@@ -273,7 +253,7 @@ int main(int argc, char *argv[])
 			case kByteAtATimeCmd:
 				printf("PROCESS KBYTESATEATIME COMMAND\n");
 				DoKByte(sock, commands[i].arg);
-				break;*/
+				break;
 			case noMoreCommands:
 				printf("NO MORE COMMANDS\n");
 				timeToEnd = 1;
@@ -281,7 +261,7 @@ int main(int argc, char *argv[])
 			default:
 				printf("Entering default case\n");
 				timeToEnd = 1;
-				break;
+				break;*/
 		}
 	}
 	close(sock); //close the connection

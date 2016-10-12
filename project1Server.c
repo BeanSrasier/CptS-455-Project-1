@@ -20,8 +20,8 @@ void sendString(int socket, char *buf, int cmd)
 	uint16_t size;
 
 	strcpy(returnString+2, commandNames[cmd]);
-	strcat(returnString, ": ");
-	strcat(returnString, buf);
+	strcat(returnString+2, ": ");
+	strcat(returnString+2, buf);
 
 	lengthOfString = strlen(returnString+2);
 	size = htons(lengthOfString);
@@ -82,24 +82,27 @@ int nullTerminated(int socket, char *buf, int bytesRead) //'DONE'
 int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 {
 	uint16_t length;
-	char *strLen;
+	int stringLength;
 	int recvMsgSize = 0;
-	length = (uint16_t)atoi(buf+1);
+	memcpy(&length, buf+1, 2); //length of buffer
+	stringLength = (int)ntohs(length);
 	printf("Length provided: %d\n", length);
-	if(length == bytesRead - 3) //buf[0] is the cmd, buf[1] and buf[2] are the 16 bit length, rest is the string
+	while(1)
 	{
-		fputs(buf, outfile);
-		sendString(socket, buf+3, 2);
-		return; //am done
+		if(length == bytesRead - 3) //buf[0] is the cmd, buf[1] and buf[2] are the 16 bit length, rest is the string
+		{
+			printf("testing\n");
+			fputs(buf, outfile);
+			sendString(socket, buf+3, givenLengthCmd);
+			return 0; //am done
+		}
+		if((recvMsgSize = recv(socket, buf+bytesRead, length-bytesRead, 0)) < 0)
+		{
+			printf("Receive error\n");
+		}
+		bytesRead += recvMsgSize;
+		totalBytesRead += recvMsgSize;
 	}
-	if((recvMsgSize = recv(socket, buf+bytesRead, length-bytesRead, 0)) < 0)
-	{
-		//print error
-	}
-	totalBytesRead += recvMsgSize; //increment total bytes read
-	fputs(buf, outfile);
-	sendString(socket, buf+3, 2);
-	return; //am done
 }
 
 int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
