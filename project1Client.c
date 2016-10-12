@@ -14,7 +14,6 @@
 
 int DoNullTerminated(int sock)
 {
-	char receiveBuffer[BUFSIZE];
 	char message[1024];
 	strcpy(message, "1");
 	printf("Message: %s\n", message);
@@ -164,8 +163,9 @@ int SendToServer(char* message, int sock, int messageLen)
   return 0;
 }
 
-int ReceiveAndOutput(int sock, char buffer[], int maxLength, int minReq)
+int ReceiveAndOutput(int sock, int maxLength, int minReq)
 {
+  char buffer[1000];
   int messageLen;
   int numBytes = 0;  //How much we got from receive
   unsigned int totalBytesRcvd = 0; // Count of total bytes received
@@ -282,13 +282,11 @@ int main(int argc, char *argv[]) {
     }
     switch(i){
       case nullTerminatedCmd:
-        continue;
 	printf("PROCESS NULL COMMAND\n");
         DoNullTerminated(sock);
         break;
-      case givenLengthCmd:
+      /*case givenLengthCmd:
         DoGivenLength(sock);
-        //continue;
         break;
       case badIntCmd:
         printf("PROCESS BadINT COMMAND\n");
@@ -313,7 +311,7 @@ int main(int argc, char *argv[]) {
       default:
         printf("Entering default case\n");
         timeToEnd = 1;
-	break;
+	break;*/
     }
   }
 
