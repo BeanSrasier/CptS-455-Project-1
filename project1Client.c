@@ -10,7 +10,7 @@
 #include "project1.h"
 
 
-int DoNullTerminated(int sock, char *arg)
+int DoNullTerminated(int socket, char *arg)
 {
 	char message[1000];
 	int bytesRead = 0;
@@ -19,14 +19,14 @@ int DoNullTerminated(int sock, char *arg)
 	strcat(message, "\0"); //Add null terminator
 	printf("Sending to Server: %s\n", message);
 
-	if((bytesRead = send(sock, message, strlen(message) + 1, 0)) < 0) //Send server the null terminated string
+	if((bytesRead = send(socket, message, strlen(message) + 1, 0)) < 0) //Send server the null terminated string
 	{
 		//error sending
 	}
 	printf("Sent %d bytes to the server\n", bytesRead);
 
 	//Recieve
-	if(ReceiveAndOutput(sock, BUFSIZE, 2) == -1) //Get back servers response and do output
+	if(ReceiveAndOutput(socket) == -1) //Get back servers response and do output
 	{
 		return -1;
 	}
@@ -132,37 +132,20 @@ int DoKByte(int sock, char *arg)
 	return 0;
 }
 
-/*int SendToServer(int sock, char* message, int messageLen) 
+int ReceiveAndOutput(int socket)
 {
-	//int numBytes; //Number of bytes sent in each send
-	int totalBytesSent = 0; // Count of total bytes sent to server
-	printf("In send to server\n");
-	printf("Message length: %d\n", messageLen);
-	if((totalBytesSent = send(sock, message, messageLen, 0)) < 0)
-	{
-		//send error
-	}
-	printf("Sent %d bytes to the server\n", totalBytesSent);
-	printf("Finished sending to server\n");
-	return 0;
-}*/
-
-int ReceiveAndOutput(int sock, int maxLength, int minReq)
-{
-	char buffer[1000];
+	char buffer[BUFSIZE];
 	int messageLen;
 	int numBytes = 0;  //How much we got from receive
 	unsigned int totalBytesRcvd = 0; // Count of total bytes received
 	uint16_t messageSize;
 
 	printf("Entering first While loop of Receive\n");
-	while(totalBytesRcvd < minReq) //Receive until we get the minimum amount needed for the length
+	while(totalBytesRcvd < 2) //Receive until we get 2 bytes (length of buffer)
 	{
-		numBytes = recv(sock, buffer, maxLength, 0);
-		if (numBytes < 0)
+		if((numBytes = recv(socket, buffer, BUFSIZE, 0)) < 0)
 		{
-			printf("Failed to recieve from server\n");
-			continue;
+			printf("Receive failed\n");
 		}
 		else if (numBytes == 0)
 		{
@@ -173,21 +156,15 @@ int ReceiveAndOutput(int sock, int maxLength, int minReq)
 		printf("We have now recieved: %d bytes\n", totalBytesRcvd);
 	}
 	printf("Out of the first loop!\n");
-	totalBytesRcvd += numBytes;
-	messageLen = *((uint16_t *) &buffer[0]);
-	printf("Message Len: %d", messageLen);
-	messageLen = ntohs(messageLen);
-
-	printf("IN RECEIVE: messageSize converted to: %d", messageLen); 
+	memcpy(&messageSize, buffer, 2);
+	messageLen = (int)ntohs(messageSize);
+	printf("Message Len: %d\n", messageLen);
 
 	while(totalBytesRcvd < messageLen+2) //Loop through and keep receiving until we've received the entire message
 	{
-		numBytes = recv(sock, buffer, maxLength, 0);
-
-		if (numBytes < 0)
+		if((numBytes = recv(socket, buffer+totalBytesRcvd, BUFSIZE, 0)) < 0)
 		{
-			printf("Failed to recieve from server\n");
-			continue;
+			printf("Receive failed\n");
 		}
 		else if (numBytes == 0)
 		{
@@ -198,10 +175,10 @@ int ReceiveAndOutput(int sock, int maxLength, int minReq)
 	}
 
 	buffer[messageSize+2] = '\0';    // Terminate the string!
-	fputs(buffer+2, stdout);      // Print the buffer without the 2byte length at the front
-	fputc('\n', stdout); //Print out a new line for the next output that happens
-
-	return;
+	printf("%s\n", buffer+2);
+	//fputs(buffer+2, stdout);      // Print the buffer without the 2byte length at the front
+	//fputc('\n', stdout); //Print out a new line for the next output that happens
+	return 0;
 }
 
 int main(int argc, char *argv[])
