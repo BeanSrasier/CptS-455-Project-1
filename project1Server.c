@@ -40,7 +40,6 @@ int nullTerminated(int socket, char *buf, int bytesRead)
 	{
 		if(buf[bytesRead - 1] == '\0') //search for null terminator
 		{
-			fwrite(buf, 1, bytesRead, outfile);
 			sendString(socket, buf+1, nullTerminatedCmd); //exclude the cmd byte
 			return 0;
 		}
@@ -51,6 +50,7 @@ int nullTerminated(int socket, char *buf, int bytesRead)
 		}
 		totalBytesRead += recvMsgSize; //increment total bytes read
 		bytesRead += recvMsgSize;
+		fwrite(buf+bytesRead, 1, recvMsgSize, outfile);
 	}
 }
 
@@ -67,6 +67,8 @@ int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 			return -1;
 		}
 		bytesRead += recvMsgSize;
+		totalBytesRead += recvMsgSize;
+		fwrite(buf+bytesRead, 1, recvMsgSize, outfile);
 	}
 	memcpy(&length, buf+1, 2); //length of buffer
 	stringLength = (int)ntohs(length); //convert to host byte short
@@ -74,7 +76,6 @@ int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 	{
 		if(stringLength == bytesRead - 3) //buf[0] is the cmd, buf[1] and buf[2] are the 16 bit length, rest is the string
 		{
-			fwrite(buf, 1, bytesRead, outfile);
 			sendString(socket, buf+3, givenLengthCmd);
 			return 0; //am done
 		}
@@ -85,6 +86,7 @@ int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 		}
 		bytesRead += recvMsgSize;
 		totalBytesRead += recvMsgSize;
+		fwrite(buf+bytesRead, 1, recvMsgSize, outfile);
 	}
 }
 
@@ -103,11 +105,11 @@ int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 		}
 		bytesRead += recvMsgSize;
 		totalBytesRead += recvMsgSize; //increment total bytes read
+		fwrite(buf+bytesRead, 1, recvMsgSize, outfile);
 	}
 	memcpy(&byteOrder, buf+1, 4); //mem copy integer from buffer into uint32_t variable
 	bytes = (int)ntohl(byteOrder); //convert to host byte long
 	sprintf(outputBuffer, "%d", bytes); //copy into outputBuffer
-	fwrite(buf, 1, bytesRead, outfile);
 	sendString(socket, outputBuffer, cmd);
 	return 0;
 }
@@ -129,11 +131,12 @@ int xBytesAtATime(int socket, char *buf, int xBytes, int bytesRead, int cmd)
 			return -1;
 		}
 		bytesReceived += recvMsgSize;
+		totalBytesRead += recvMsgSize;
+		fwrite(buf+bytesReceived, 1, recvMsgSize, outfile);
 		numRecvs++; //increment num recvs
 	}
 	memcpy(&bytes, buf+1, 4); //Amount of bytes to receive
 	numBytes = (int)ntohl(bytes); //convert bytes into host byte long
-	fwrite(buf, 1, bytesRead, outfile);
 	while(bytesReceived < numBytes+5) //#bytes + 5 header bytes
 	{
 		if((recvMsgSize = recv(socket, buf, xBytes, 0)) < 1) //receive x bytes at a time (1 or 1000 depending on function call)
@@ -142,10 +145,10 @@ int xBytesAtATime(int socket, char *buf, int xBytes, int bytesRead, int cmd)
 			return -1;
 		}
 		bytesReceived += recvMsgSize;
+		totalBytesRead += recvMsgSize;
 		numRecvs++; //increment num recvs
-		fwrite(buf, 1, bytesRead, outfile);
+		fwrite(buf, 1, recvMsgSize, outfile);
 	}
-	totalBytesRead += bytesReceived;
 	sprintf(recvBuffer, "%d", numRecvs); //copy numRecvs integer into recvBuffer string
 	sendString(socket, recvBuffer, cmd); //send string to client
 }
@@ -211,6 +214,7 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 				break;
 			}
 			totalBytesRead += recvMsgSize;
+			fwrite(recvBuffer, 1, recvMsgSize, outfile);
 			cmd = (int)recvBuffer[0];
 			switch(cmd) //first byte is associated command
 			{
