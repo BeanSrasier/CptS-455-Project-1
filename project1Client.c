@@ -238,12 +238,12 @@ int main(int argc, char *argv[])
 			case goodIntCmd:
 				DoGoodInt(sock, commands[i].arg);
 				break;
-			/*case byteAtATimeCmd:
+			case byteAtATimeCmd:
 				sendXBytes(sock, commands[i].arg, 1, commands[i].cmd);
 				break;
 			case kByteAtATimeCmd:
 				sendXBytes(sock, commands[i].arg, 1000, commands[i].cmd);
-				break;*/
+				break;
 			case noMoreCommands:
 				timeToEnd = 1;
 				break;

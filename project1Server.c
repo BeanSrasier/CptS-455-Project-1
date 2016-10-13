@@ -13,7 +13,7 @@
 int totalBytesRead;
 FILE *outfile;
 
-void sendString(int socket, char *buf, int cmd)
+int sendString(int socket, char *buf, int cmd)
 {
 	char returnString[BUFSIZE];
 	int lengthOfString;
@@ -25,10 +25,11 @@ void sendString(int socket, char *buf, int cmd)
 	strcat(returnString+2, buf);
 	lengthOfString = strlen(returnString+2);
 	size = htons(lengthOfString); //convert length to network byte short
-	memcpy(returnString, &size, sizeof(size));
-	if(send(socket, returnString, lengthOfString+2, 0) != lengthOfString+2)
+	memcpy(returnString, &size, sizeof(size)); //mem copy message length as 2 byte short into the beginning of the message
+	if(send(socket, returnString, lengthOfString+2, 0) != lengthOfString+2) //send message to the client
 	{
 		printf("Failed to send");
+		return -1;
 	}
 }
 
@@ -45,7 +46,7 @@ int nullTerminated(int socket, char *buf, int bytesRead)
 		}
 		if((recvMsgSize = recv(socket, buf + bytesRead, BUFSIZE - bytesRead, 0)) < 1) //must receive at least 1 byte
 		{
-			//failed to receive or connection severed
+			printf("Receive in nullTerminated failed\n");
 			return -1;
 		}
 		totalBytesRead += recvMsgSize; //increment total bytes read
@@ -62,7 +63,8 @@ int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 	{
 		if((recvMsgSize = recv(socket, buf+bytesRead, BUFSIZE - bytesRead, 0)) < 0)
 		{
-			printf("Receive error\n");
+			printf("Receive in givenLength failed\n");
+			return -1;
 		}
 		bytesRead += recvMsgSize;
 	}
@@ -78,7 +80,8 @@ int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 		}
 		if((recvMsgSize = recv(socket, buf+bytesRead, length-bytesRead, 0)) < 0) //keep receiving bytes
 		{
-			printf("Receive error\n");
+			printf("Receive in givenLength failed\n");
+			return -1;
 		}
 		bytesRead += recvMsgSize;
 		totalBytesRead += recvMsgSize;
@@ -95,7 +98,7 @@ int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 	{
 		if((recvMsgSize = recv(socket, buf+bytesRead, 5-bytesRead, 0)) < 0) //should receive rest of the bytes
 		{
-			printf("Receive failed\n");
+			printf("Receive in goodOrBadInt failed\n");
 			return -1;
 		}
 		bytesRead += recvMsgSize;
@@ -113,42 +116,38 @@ int xBytesAtATime(int socket, char *buf, int xBytes, int bytesRead, int cmd)
 {
 	int bytesReceived = bytesRead;
 	int recvMsgSize = 0;
-	int numRecvs = 1; //first receive
+	int numRecvs = 0;
 	uint32_t bytes;
 	int numBytes;
 	char recvBuffer[BUFSIZE];
-	printf("Initial bytes read: %d\n", bytesRead);
-	while(bytesReceived < 5) //receive first 5 bytes (cmd byte and 4 byte integer)
+
+	while(bytesReceived < 5) //make sure to receive first 5 bytes (cmd byte and 4 byte integer)
 	{
 		if((recvMsgSize = recv(socket, buf+bytesReceived, BUFSIZE - bytesReceived, 0)) < 0) //keep receiving bytes
 		{
-			printf("Receive failed\n");
+			printf("Receive in xBytesAtATime failed\n");
 			return -1;
 		}
 		bytesReceived += recvMsgSize;
-		numRecvs++;
+		numRecvs++; //increment num recvs
 	}
 	memcpy(&bytes, buf+1, 4); //Amount of bytes to receive
-	numBytes = (int)ntohl(bytes);
-	printf("numBytes: %d\n", numBytes);
+	numBytes = (int)ntohl(bytes); //convert bytes into host byte long
 	fputs(buf, outfile);
-
 	while(bytesReceived < numBytes+5) //#bytes + 5 header bytes
 	{
-		if((recvMsgSize = recv(socket, buf, xBytes, 0)) < 1)
+		if((recvMsgSize = recv(socket, buf, xBytes, 0)) < 1) //receive x bytes at a time (1 or 1000 depending on function call)
 		{
-			printf("Receive failed\n");
+			printf("Receive in xBytesAtATime failed\n");
 			return -1;
 		}
 		bytesReceived += recvMsgSize;
-		numRecvs++;
+		numRecvs++; //increment num recvs
 		fputs(buf, outfile);
 	}
-	printf("Bytes received: %d\n", bytesReceived);
 	totalBytesRead += bytesReceived;
-	printf("xByte receives: %d\n", numRecvs);
-	sprintf(recvBuffer, "%d", numRecvs);
-	sendString(socket, recvBuffer, cmd);
+	sprintf(recvBuffer, "%d", numRecvs); //copy numRecvs integer into recvBuffer string
+	sendString(socket, recvBuffer, cmd); //send string to client
 }
 
 //Used the code from Donahoo/Calvert as a basis for our main
@@ -203,7 +202,7 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 		{
 			if((recvMsgSize = recv(clntSock, recvBuffer, BUFSIZE, 0)) < 0) //receive 1000 bytes (first read)
 			{
-				//printf("Failed to recieve...\n");
+				printf("Receive in main failed\n");
 			}
 			if(recvMsgSize == 0)
 			{
@@ -211,11 +210,9 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 			}
 			totalBytesRead += recvMsgSize;
 			cmd = (int)recvBuffer[0];
-			printf("Command: %d\n", cmd);
 			switch(cmd) //first byte is associated command
 			{
 				case nullTerminatedCmd:
-					printf("in null\n"); 
 					nullTerminated(clntSock, recvBuffer, recvMsgSize);
 					break;
 				case givenLengthCmd: 
