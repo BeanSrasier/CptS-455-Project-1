@@ -110,11 +110,11 @@ int sendXBytes(int socket, char *arg, int xBytes, int cmd)
 		{
 			if((bytesSent / 1000) % 2 == 0) //even
 			{
-				//message = {0};
+				memset(message, 0, BUFSIZE); //fill up buffer with 0 bytes
 			}
 			else //odd
 			{
-				//message = {1};
+				memset(message, 1, BUFSIZE); //fill up buffer with 1 bytes
 			}
 		}
 		if((recvMsgSize = send(socket, message, xBytes, 0)) < 0) //send x amount of bytes to the server
