@@ -17,8 +17,8 @@ int DoNullTerminated(int socket, char *arg)
 	
 	message[0] = 1;
 
-  	strcat(message, arg); //cat the message onto the cmd
-	strcat(message, "\0"); //Add null terminator
+  	strcpy(message+1, arg); //cat the message onto the cmd
+	strcat(message+1, "\0"); //Add null terminator
 
 	if((bytesRead = send(socket, message, strlen(message) + 1, 0)) < 0) //Send server the null terminated string
 	{
@@ -200,11 +200,8 @@ int main(int argc, char *argv[])
 	servIP = argv[1];     // First arg: server IP address (dotted quad)
 	port = argv[2]; // Second arg: string to echo
 
-	printf("We were passed IPAddress: %s and Port %s\n", servIP, port);
-
 	//set the port
 	servPort = atoi(port);
-	printf("servPort = %d\n", servPort);
 	// Create a reliable, stream socket using TCP
 	sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sock < 0)
@@ -212,14 +209,12 @@ int main(int argc, char *argv[])
 		printf("Failed to get socket\n");
 		return 0;
 	}
-	printf("Socket Successfully Created\n");
 
 	// Construct the server address structure
 	struct sockaddr_in servAddr;            // Server address
 	memset(&servAddr, 0, sizeof(servAddr)); // Zero out structure
 	servAddr.sin_family = AF_INET;          // IPv4 address family
 
-	printf("Server Address Structure Susccessfully Constructed\n");
 
 	// Convert address
 	rtnVal = inet_pton(AF_INET, servIP, &servAddr.sin_addr.s_addr);
@@ -228,11 +223,8 @@ int main(int argc, char *argv[])
 		printf("Changing of Address to binary has failed\n");
 		return 0;
 	}
-	printf("Address Converted\n");
-	//printf("htons(servPort) returns: %d\n", htons(servPort));
 	servAddr.sin_port = htons(servPort);    // Server port
 
-	printf("Attempting Connection...");
 	// Establish the connection to the echo server
 	connectValue = connect(sock, (struct sockaddr *) &servAddr, sizeof(servAddr));
 	if (connectValue < 0)
@@ -240,7 +232,6 @@ int main(int argc, char *argv[])
 		printf("Failed to connect...\n");
 		return 0;
 	}
-	printf("Now Connected to server\n");
 
 	for(i = 0;; i++) //Loop through all commands (will exit upon hitting no more commands)
 	{
@@ -248,39 +239,30 @@ int main(int argc, char *argv[])
 		{
 			break;
 		}
-		printf("Command: %d\n", commands[i].cmd);
 		switch(commands[i].cmd)
 		{
 			case nullTerminatedCmd:
-				printf("PROCESS NULL COMMAND\n");
 				DoNullTerminated(sock, commands[i].arg);
 				break;
 			case givenLengthCmd:
-				printf("PROCESS GIVEN LENGTH COMMAND\n");
 				DoGivenLength(sock, commands[i].arg);
 				break;
 			case badIntCmd:
-				printf("PROCESS BadINT COMMAND\n");
 				DoBadInt(sock, commands[i].arg);
 				break;
 			case goodIntCmd:
-				printf("PROCESS GoodINT COMMAND\n");
 				DoGoodInt(sock, commands[i].arg);
 				break;
 			/*case byteAtATimeCmd:
-				printf("PROCESS BYTEATATIME COMMAND\n");
 				sendXBytes(sock, commands[i].arg, 1, commands[i].cmd);
 				break;
 			case kByteAtATimeCmd:
-				printf("PROCESS KBYTESATEATIME COMMAND\n");
 				sendXBytes(sock, commands[i].arg, 1000, commands[i].cmd);
 				break;*/
 			case noMoreCommands:
-				printf("NO MORE COMMANDS\n");
 				timeToEnd = 1;
 				break;
 			default:
-				printf("Entering default case\n");
 				timeToEnd = 1;
 				break;
 		}

@@ -128,12 +128,16 @@ int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 	return 0;
 }
 
-int xBytesAtATime(int socket, char *buf, int xBytes, int cmd)
+int xBytesAtATime(int socket, char *buf, int xBytes, int bytesRead, int cmd)
 {
-	int bytesReceived = 0;
-	int numRecvs = 1; //cmd byte and amount of bytes
-	uint32_t numBytes;
-	memcpy(&numBytes, buf+1, 4); //Amount of bytes to receive
+	printf("Command: %d\n", cmd);
+	int bytesReceived = bytesRead;
+	int numRecvs = 1; //first receive
+	uint32_t bytes;
+	int numBytes;
+	char recvBuffer[BUFSIZE];
+	memcpy(&bytes, buf+1, 4); //Amount of bytes to receive
+	numBytes = (int)ntohl(bytes);
 	fputs(buf, outfile);
 
 	while(bytesReceived != numBytes)
@@ -148,7 +152,8 @@ int xBytesAtATime(int socket, char *buf, int xBytes, int cmd)
 	}
 	totalBytesRead += bytesReceived;
 	printf("xByte receives: %d\n", numRecvs);
-	//sendNumRecvs(socket, numRecvs, cmd);
+	sprintf(recvBuffer, "%d", numRecvs);
+	sendString(socket, recvBuffer, cmd);
 }
 
 int main(int argc, char *argv[]) //argv[1] is the port to listen to
@@ -170,7 +175,6 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 		return 0;
 	}
 	servPort = atoi(argv[1]); //get port from argv[1]
-        printf("servPort = %d\n", servPort);
 
         if ((servSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
 	{
@@ -215,7 +219,6 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 			}
 			totalBytesRead += recvMsgSize;
 			cmd = (int)recvBuffer[0];
-			printf("Command number: %d\n", cmd);
 			switch(cmd) //first byte is associated command
 			{
 				case nullTerminatedCmd: 
@@ -231,14 +234,16 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 					goodOrBadInt(clntSock, recvBuffer, recvMsgSize, 4);
 					break;
 				case byteAtATimeCmd: 
-					xBytesAtATime(clntSock, recvBuffer, 1, byteAtATimeCmd);
+					xBytesAtATime(clntSock, recvBuffer, 1, recvMsgSize, byteAtATimeCmd);
 					break;
 				case kByteAtATimeCmd: 
-					xBytesAtATime(clntSock, recvBuffer, 1000, kByteAtATimeCmd);
+					printf("test\n");
+					xBytesAtATime(clntSock, recvBuffer, 1000, recvMsgSize, kByteAtATimeCmd);
 					break;
 			}
 		}
 		printf("Server read %d bytes\n", totalBytesRead); //print #bytes received
+		totalBytesRead = 0;
 		fclose(outfile);
 		close(clntSock);
 	}
