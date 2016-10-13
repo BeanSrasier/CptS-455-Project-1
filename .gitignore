@@ -3,3 +3,6 @@ outfile.txt
 client
 server
 *~
+*.swp
+project1Client
+project1Server

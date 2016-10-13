@@ -1,3 +1,5 @@
+//Sean Brasier and Erik Lystad
+
 typedef struct {
   unsigned cmd;
   char *arg;

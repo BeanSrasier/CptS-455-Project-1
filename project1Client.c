@@ -1,3 +1,5 @@
+//Sean Brasier and Erik Lystad
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
