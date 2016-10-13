@@ -118,6 +118,7 @@ int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 		{
 			//printf("Failed to recieve...\n");
 		}
+		bytesRead += recvMsgSize;
 		totalBytesRead += recvMsgSize; //increment total bytes read
 	}
 	memcpy(&byteOrder, buf+1, 4);
@@ -131,22 +132,33 @@ int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 int xBytesAtATime(int socket, char *buf, int xBytes, int bytesRead, int cmd)
 {
 	printf("Command: %d\n", cmd);
-	int bytesReceived = bytesRead;
+	int bytesReceived = 0;
+	int recvMsgSize = 0;
 	int numRecvs = 1; //first receive
 	uint32_t bytes;
 	int numBytes;
 	char recvBuffer[BUFSIZE];
+	while(bytesReceived < 5)
+	{
+		if((recvMsgSize = recv(socket, buf+bytesReceived, BUFSIZE - bytesReceived, 0)) < 0)
+		{
+			printf("Receive failed\n");
+			return -1;
+		}
+		bytesReceived += recvMsgSize;
+	}
 	memcpy(&bytes, buf+1, 4); //Amount of bytes to receive
 	numBytes = (int)ntohl(bytes);
 	fputs(buf, outfile);
 
 	while(bytesReceived != numBytes)
 	{
-		if((bytesReceived += recv(socket, buf, xBytes, 0)) < 0)
+		if((recvMsgSize = recv(socket, buf, xBytes, 0)) < 0)
 		{
 			printf("Receive failed\n");
 			return -1;
 		}
+		bytesReceived += recvMsgSize;
 		numRecvs++;
 		fputs(buf, outfile);
 	}
@@ -219,9 +231,11 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 			}
 			totalBytesRead += recvMsgSize;
 			cmd = (int)recvBuffer[0];
+			printf("Command: %d\n", cmd);
 			switch(cmd) //first byte is associated command
 			{
-				case nullTerminatedCmd: 
+				case nullTerminatedCmd:
+					printf("in null\n"); 
 					nullTerminated(clntSock, recvBuffer, recvMsgSize);
 					break;
 				case givenLengthCmd: 
