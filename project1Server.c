@@ -40,7 +40,7 @@ int nullTerminated(int socket, char *buf, int bytesRead)
 	{
 		if(buf[bytesRead - 1] == '\0') //search for null terminator
 		{
-			fprintf(outfile, "%s", buf);
+			fwrite(buf, 1, bytesRead, outfile);
 			sendString(socket, buf+1, nullTerminatedCmd); //exclude the cmd byte
 			return 0;
 		}
@@ -74,7 +74,7 @@ int givenLength(int socket, char *buf, int bytesRead) //'DONE'
 	{
 		if(stringLength == bytesRead - 3) //buf[0] is the cmd, buf[1] and buf[2] are the 16 bit length, rest is the string
 		{
-			fprintf(outfile, "%s", buf);
+			fwrite(buf, 1, bytesRead, outfile);
 			sendString(socket, buf+3, givenLengthCmd);
 			return 0; //am done
 		}
@@ -107,7 +107,7 @@ int goodOrBadInt(int socket, char *buf, int bytesRead, int cmd)
 	memcpy(&byteOrder, buf+1, 4); //mem copy integer from buffer into uint32_t variable
 	bytes = (int)ntohl(byteOrder); //convert to host byte long
 	sprintf(outputBuffer, "%d", bytes); //copy into outputBuffer
-	fprintf(outfile, "%s", buf);
+	fwrite(buf, 1, bytesRead, outfile);
 	sendString(socket, outputBuffer, cmd);
 	return 0;
 }
@@ -133,7 +133,7 @@ int xBytesAtATime(int socket, char *buf, int xBytes, int bytesRead, int cmd)
 	}
 	memcpy(&bytes, buf+1, 4); //Amount of bytes to receive
 	numBytes = (int)ntohl(bytes); //convert bytes into host byte long
-	fprintf(outfile, "%s", buf);
+	fwrite(buf, 1, bytesRead, outfile);
 	while(bytesReceived < numBytes+5) //#bytes + 5 header bytes
 	{
 		if((recvMsgSize = recv(socket, buf, xBytes, 0)) < 1) //receive x bytes at a time (1 or 1000 depending on function call)
@@ -143,7 +143,7 @@ int xBytesAtATime(int socket, char *buf, int xBytes, int bytesRead, int cmd)
 		}
 		bytesReceived += recvMsgSize;
 		numRecvs++; //increment num recvs
-		fprintf(outfile, "%s", buf);
+		fwrite(buf, 1, bytesRead, outfile);
 	}
 	totalBytesRead += bytesReceived;
 	sprintf(recvBuffer, "%d", numRecvs); //copy numRecvs integer into recvBuffer string
@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) //argv[1] is the port to listen to
 	int cmd;
 	int recvMsgSize;
 	int clntAddrLen;
-	char recvBuffer[32];
+	char recvBuffer[BUFSIZE];
 	struct sockaddr_in servAddr;
 	struct sockaddr_in clntAddr;
         int errsv;
